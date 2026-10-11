@@ -1,0 +1,1572 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0D6663">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Canten">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 0}body{margin:0}[hidden]{display:none!important}</style>
+<title>Canten Alabanzas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: lista de cantos a la izquierda y partitura a la derecha en iPad; una sola columna con barra inferior en celular. */
+:root{
+  --bg:#F1F4F6; --surface:#FFFFFF; --surface-2:#E7ECEF; --ink:#17212B; --muted:#58656F; --line:#D3DADF;
+  --accent:#0D6663; --accent-ink:#FFFFFF; --accent-soft:#D9EEEC; --chord:#B0341B;
+  --good:#1D7444; --warn:#94600A; --danger:#B3261E;
+  --font-display:'Bricolage Grotesque','Avenir Next',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10151B; --surface:#192029; --surface-2:#232C37; --ink:#E7ECF1; --muted:#96A3AF; --line:#2D3844;
+    --accent:#4FC6BD; --accent-ink:#06201F; --accent-soft:#17383A; --chord:#FF9D75;
+    --good:#5CC98A; --warn:#E5B04F; --danger:#FF8A80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10151B; --surface:#192029; --surface-2:#232C37; --ink:#E7ECF1; --muted:#96A3AF; --line:#2D3844;
+  --accent:#4FC6BD; --accent-ink:#06201F; --accent-soft:#17383A; --chord:#FF9D75;
+  --good:#5CC98A; --warn:#E5B04F; --danger:#FF8A80; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--font-body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+small{font-size:.8125rem}
+
+#app{height:100%;display:flex;flex-direction:column;min-height:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.top h1{font-size:1.25rem;font-weight:700}
+.top .warn{font-size:.8125rem;color:var(--warn);font-weight:500}
+main{flex:1;min-height:0}
+.tabs{display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tab{flex:1;min-height:56px;border:0;background:none;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-top:3px solid transparent}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent);border-top-color:var(--accent)}
+.tab span{font-size:.8125rem}
+
+/* dos paneles */
+.split{height:100%;display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);min-height:0}
+.pane{min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.list-pane{border-right:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column}
+.detail-pane{padding:16px;padding-bottom:40px}
+@media (max-width:879px){
+  .split{grid-template-columns:minmax(0,1fr)}
+  .list-pane{border-right:0}
+  .split.has-sel .list-pane{display:none}
+  .split:not(.has-sel) .detail-pane{display:none}
+}
+@media (min-width:880px){ .back{display:none!important} .detail-pane{padding:20px 28px 48px} }
+
+.toolbar{padding:12px 16px;display:grid;gap:8px;border-bottom:1px solid var(--line);background:var(--surface)}
+.toolbar .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.input,.select,.textarea{width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.textarea{min-height:110px;resize:vertical}
+.textarea.mono{font-family:var(--font-mono);font-size:.9375rem;line-height:1.4;white-space:pre;overflow:auto}
+label.f{display:grid;gap:4px;font-weight:600;font-size:.875rem;color:var(--muted);min-width:0}
+label.f .input,label.f .select,label.f .textarea{color:var(--ink);font-weight:400}
+
+.list{flex:1;min-height:0;overflow:auto}
+.row-song{display:grid;gap:2px;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--line);background:none;min-height:64px}
+.row-song[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 4px 0 0 var(--accent)}
+.row-song .l1{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.row-song .t{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.row-song .k{font-family:var(--font-mono);font-weight:600;color:var(--accent);white-space:nowrap;font-size:.9375rem}
+.row-song .m{color:var(--muted);font-size:.875rem}
+.row-song .lp{font-size:.8125rem;color:var(--muted)}
+.row-song .lp.stale{color:var(--warn);font-weight:500}
+.empty{padding:28px 16px;color:var(--muted);text-align:center;text-wrap:balance}
+
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.btn.danger.sure{background:var(--danger);color:#fff}
+.btn.sm{min-height:36px;padding:0 12px;font-size:.875rem}
+.btn.link{border:0;background:none;padding:0;min-height:0;color:var(--accent);text-align:left}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+
+.head{display:grid;gap:6px;margin-bottom:14px}
+.head h2{font-size:1.75rem;font-weight:700;line-height:1.15}
+.sub{color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:.75rem;padding:2px 8px;border-radius:99px;background:var(--surface-2);color:var(--muted);font-weight:500}
+.tag.ex{background:var(--accent-soft);color:var(--accent)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;display:grid;gap:12px}
+.card h3{font-size:1rem;font-weight:700}
+.lab{font-size:.75rem;letter-spacing:.07em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-width:46px;min-height:46px;padding:2px 8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-family:var(--font-mono);font-weight:600;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;position:relative}
+.chip small{font-family:var(--font-body);font-weight:500;color:var(--muted);font-size:.6875rem}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.on small{color:var(--accent-ink);opacity:.85}
+.chip.sing::after{content:"";position:absolute;bottom:3px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.chip.on.sing::after{background:var(--accent-ink)}
+.chip.easy:not(.on){border-color:var(--accent)}
+.hint{font-size:.875rem;color:var(--muted)}
+.hint b{color:var(--ink)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn.toggle[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px;overflow-x:auto;font-family:var(--font-mono);font-weight:500;line-height:1.35;-webkit-overflow-scrolling:touch}
+.chart .cl{white-space:pre;color:var(--chord);font-weight:600}
+.chart .ly{white-space:pre}
+.chart .gap{height:.8em}
+.chart .sec{font-family:var(--font-body);font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;color:var(--muted);margin:1.1em 0 .35em}
+.chart .sec:first-child{margin-top:0}
+.chart-empty{color:var(--muted);font-family:var(--font-body);white-space:normal}
+.cols{column-gap:36px;column-rule:1px solid var(--line)}
+.cols .blk{break-inside:avoid}
+.cols .sec{break-after:avoid;break-inside:avoid}
+.cols>.sec:first-child{margin-top:0}
+.cols>.gap:first-child{display:none}
+.tag.cat{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.chip.wide{font-family:var(--font-body);padding:2px 16px}
+.notice{background:var(--accent-soft);border:1px solid var(--accent);color:var(--ink);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-weight:500}
+.readbar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;background:var(--bg);padding:2px 0 10px}
+.readbar .rt{display:grid;min-width:0;flex:1 1 220px}
+.readbar .rt b{font-family:var(--font-display);font-size:1.125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.readbar .rt span{font-size:.875rem;color:var(--muted)}
+.readbar .rc{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#app.reading .top,#app.reading .tabs{display:none}
+#app.reading .split{grid-template-columns:minmax(0,1fr)}
+#app.reading .list-pane{display:none}
+#app.reading .detail-pane{padding:10px 16px 16px}
+#app.reading .chart{margin-bottom:0}
+
+.list-plain{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.list-plain li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);min-height:44px}
+.list-plain li:first-child{border-top:0}
+.list-plain .why{font-size:.8125rem;color:var(--muted)}
+.list-plain .grow{min-width:0;display:grid}
+.grow{min-width:0}
+.pairrow{display:flex;gap:8px}
+.pairrow .select{flex:1}
+
+.form{display:grid;gap:14px;max-width:760px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.item .no{font-family:var(--font-mono);font-weight:600;color:var(--muted);width:1.6em;text-align:center}
+.item .ttl{font-weight:600;overflow-wrap:anywhere}
+.item .ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.item .ksel{min-height:40px;width:auto;padding:4px 8px;font-family:var(--font-mono);font-weight:600}
+.iconbtn{min-width:40px;min-height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600}
+.trans{font-size:.8125rem;padding:4px 0 4px 40px;color:var(--muted)}
+.trans.ok{color:var(--good)}
+.trans.jump{color:var(--warn)}
+.items{display:grid;gap:0;margin-bottom:14px}
+.set-row{display:grid;gap:2px;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--line);background:none;min-height:60px}
+.set-row[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 4px 0 0 var(--accent)}
+.page{padding:16px;max-width:820px;margin:0 auto;height:100%;overflow:auto;padding-bottom:40px}
+.stat{display:flex;gap:20px;flex-wrap:wrap}
+.stat div{display:grid}
+.stat b{font-family:var(--font-display);font-size:1.5rem}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:500;max-width:calc(100% - 32px);z-index:10;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+@media (prefers-reduced-motion:no-preference){.toast{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+
+.tag.th{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.chip.theme{font-family:var(--font-body);padding:2px 14px;min-height:40px}
+.sub-actions{grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap}
+.only{color:var(--accent);font-weight:600}
+.partsbox{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:8px}
+.partsbox .quick{display:flex;gap:8px;flex-wrap:wrap}
+.partrow{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%;text-align:left;min-height:48px}
+.partrow .bx{flex:none;width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:grid;place-items:center;font-size:.8rem;color:var(--accent-ink);margin-top:1px}
+.partrow[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.partrow[aria-pressed="true"] .bx{background:var(--accent);border-color:var(--accent)}
+.partrow b{display:block}
+.partrow small{color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.startbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.startbar .btn.primary{min-height:52px;font-size:1.0625rem;padding:0 22px}
+body.pl-open{overflow:hidden}
+.player{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;color:var(--ink)}
+.pl-bar{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.pl-bar .pl-t{flex:1;min-width:0;display:grid;line-height:1.2}
+.pl-bar .pl-t b{font-family:var(--font-display);font-size:1rem}
+.pl-bar .pl-t span{font-size:.8125rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-set{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 14px;display:grid;gap:12px;max-height:60vh;overflow:auto}
+.pl-set[hidden]{display:none}
+.pl-set .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pl-set .row .lab{min-width:92px}
+.pl-track{flex:1;min-height:0;display:flex;overflow:auto;-webkit-overflow-scrolling:touch;position:relative}
+.player[data-dir="l"] .pl-track,.player[data-dir="r"] .pl-track{overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:auto;overscroll-behavior:contain}
+.player[data-dir="r"] .pl-track{direction:rtl}
+.player[data-dir="v"] .pl-track{flex-direction:column;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y proximity}
+.pl-page{direction:ltr;scroll-snap-align:start;scroll-snap-stop:always;padding:12px 16px 20px;min-width:0}
+.player[data-dir="l"] .pl-page,.player[data-dir="r"] .pl-page{flex:0 0 100%;width:100%;height:100%;overflow-y:auto}
+.player[data-dir="v"] .pl-page{border-top:6px solid var(--surface-2);padding-bottom:36px}
+.player[data-dir="v"] .pl-page:first-child{border-top:0}
+.pl-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:8px}
+.pl-h b{font-family:var(--font-display);font-size:1.375rem;line-height:1.15}
+.pl-h .pl-n{font-family:var(--font-mono);font-size:.8125rem;color:var(--muted);font-weight:600}
+.pl-h .pl-m{font-size:.9375rem;color:var(--muted)}
+.player .chart{border:0;background:transparent;padding:4px 2px;margin:0;overflow-x:auto;overflow-y:visible}
+.pl-next{margin-top:18px;color:var(--muted);font-size:.9375rem;border-top:1px dashed var(--line);padding-top:10px}
+.player:not([data-dir="v"]) .pl-next{display:none}
+.pl-nav{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:.92;z-index:3}
+.pl-nav:disabled{opacity:.3}
+.player[data-dir="v"] .pl-nav{display:none}
+</style>
+
+<div id="app">
+  <header class="top"><h1>Canten Alabanzas</h1><span class="warn" id="warn" hidden>Sin guardado en este navegador</span></header>
+  <main id="main"></main>
+  <nav class="tabs" aria-label="Secciones">
+    <button class="tab" data-a="tab" data-tab="songs"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span>Cantos</span></button>
+    <button class="tab" data-a="tab" data-tab="sets"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>Repertorios</span></button>
+    <button class="tab" data-a="tab" data-tab="cloud"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.8 3 2.6 3 5"/></svg><span>Comunidad</span></button>
+    <button class="tab" data-a="tab" data-tab="backup"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M5 19h14"/></svg><span>Respaldo</span></button>
+  </nav>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- música ---------- */
+var SH=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var FL=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+var LBL=['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+var ROOT={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+var FLATMAJ=[5,10,3,8,1,6];
+var CATS=[['calmada','Calmada'],['movida','Movida'],['himno','Himno'],['corito','Corito'],['chanting','Chanting']];
+var THEMES=['El amor de Dios','El sacrificio de Jesús','Gracia','Salvación y perdón','Resurrección','El regreso de Cristo','Adoración','Alabanza y gozo','Grandeza y poder de Dios','Fidelidad y bondad','El Espíritu Santo','Paz y descanso','Esperanza y fe','Entrega y consagración','Unidad e iglesia','La Palabra de Dios','Luz','Navidad','Santa Cena','El cielo y la eternidad','Buscar a Dios','Gratitud','Evangelismo y siembra','El nombre de Jesús'];
+function catLabel(id){ for(var i=0;i<CATS.length;i++) if(CATS[i][0]===id) return CATS[i][1]; return id; }
+function mod(n){return ((n%12)+12)%12;}
+function useFlats(root,minor){return FLATMAJ.indexOf(minor?mod(root+3):mod(root))>-1;}
+function keyName(r,minor){return LBL[mod(r)]+(minor?'m':'');}
+function shapeName(r,minor){return (useFlats(r,minor)?FL:SH)[mod(r)]+(minor?'m':'');}
+function isEasy(r,minor){return (minor?[9,4,2]:[7,0,2,9,4]).indexOf(mod(r))>-1;}
+
+var SUF='(?:maj|min|dim|aug|sus|add|m|M|\\+|°|º|-)?(?:\\d+|sus\\d?|add\\d+|[b#]\\d+|\\([^)]*\\))*';
+var CHRE=new RegExp('^([A-G][#b]?)('+SUF+')(?:\\/([A-G][#b]?))?$');
+var PASS=/^(\||\/|-|%|\.{2,}|\(?x\d+\)?|N\.C\.?)$/i;
+function tChord(tok,semis,flats){
+  if(!semis) return tok;
+  var m=CHRE.exec(tok); if(!m) return tok;
+  var set=flats?FL:SH;
+  var out=set[mod(ROOT[m[1]]+semis)]+m[2];
+  if(m[3]) out+='/'+set[mod(ROOT[m[3]]+semis)];
+  return out;
+}
+function isChordLine(l){
+  var t=l.trim().split(/\s+/); if(!t[0]) return false;
+  var chords=0;
+  for(var i=0;i<t.length;i++){ if(CHRE.test(t[i])) chords++; else if(!PASS.test(t[i])) return false; }
+  return chords>0;
+}
+var SECRE=/^(verso|coro|puente|intro|pre-?coro|final|interludio|estribillo|instrumental|chorus|pre-?chorus|verse|bridge|outro|interlude|refrain|refr[aá]n|tag)\s*\d*\s*[:.]?$/i;
+function isSection(l){
+  var t=l.trim(); if(!t) return false;
+  var m=t.match(/^\[([^\]]+)\]$/);
+  if(m && !CHRE.test(m[1].trim())) return true;
+  if(t.charAt(0)==='#') return true;
+  return SECRE.test(t);
+}
+function cleanSection(l){return l.trim().replace(/^\[|\]$/g,'').replace(/^#+\s*/,'').replace(/[:.]$/,'');}
+function fromInline(raw){
+  var c='',l='',last=0,m,re=/\[([^\]]*)\]/g;
+  while((m=re.exec(raw))){
+    l+=raw.slice(last,m.index); last=re.lastIndex;
+    var col=l.length;
+    if(c.length>0 && c.length>=col){ col=c.length+1; if(l.length<col) l=l+new Array(col-l.length+1).join(' '); }
+    while(c.length<col) c+=' ';
+    c+=m[1];
+  }
+  l+=raw.slice(last);
+  return {c:c,l:l};
+}
+function chordLineText(line,semis,flats){
+  var out='',re=/\S+/g,m;
+  while((m=re.exec(line))){
+    var gap=m.index-out.length; if(gap<=0 && out.length) gap=1;
+    if(gap>0) out+=new Array(gap+1).join(' ');
+    out+=tChord(m[0],semis,flats);
+  }
+  return out;
+}
+function chordLine(line,semis,flats){
+  var t=chordLineText(line,semis,flats);
+  return {html:'<div class="cl">'+esc(t)+'</div>',len:t.length};
+}
+function shiftText(text,semis,flats){
+  if(!semis) return text;
+  return text.split('\n').map(function(l){
+    if(isSection(l)) return l;
+    if(/\[[A-G][^\]]*\]/.test(l)) return l.replace(/\[([^\]]+)\]/g,function(m,c){ return CHRE.test(c)?'['+tChord(c,semis,flats)+']':m; });
+    if(isChordLine(l)) return chordLineText(l,semis,flats);
+    return l;
+  }).join('\n');
+}
+function renderChart(s,target,capo){
+  var semis=mod(target-s.orig-capo), shape=mod(target-capo), flats=useFlats(shape,s.minor);
+  var lines=String(s.chart||'').replace(/\r/g,'').split('\n'), out=[], max=0;
+  function ly(t){ if(t.length>max) max=t.length; return '<div class="ly">'+esc(t)+'</div>'; }
+  function cl(t){ var r=chordLine(t,semis,flats); if(r.len>max) max=r.len; return r.html; }
+  for(var i=0;i<lines.length;i++){
+    var raw=lines[i];
+    if(isSection(raw)){ out.push('<div class="sec">'+esc(cleanSection(raw))+'</div>'); continue; }
+    if(/\[[A-G][^\]]*\]/.test(raw)){
+      var p=fromInline(raw); out.push('<div class="blk">'+cl(p.c)+(p.l.trim()?ly(p.l):'')+'</div>'); continue;
+    }
+    if(isChordLine(raw)){
+      var nx=lines[i+1];
+      if(nx!==undefined && nx.trim() && !isSection(nx) && !isChordLine(nx) && !/\[[A-G][^\]]*\]/.test(nx)){ out.push('<div class="blk">'+cl(raw)+ly(nx)+'</div>'); i++; }
+      else out.push('<div class="blk">'+cl(raw)+'</div>');
+      continue;
+    }
+    out.push(raw.trim()===''?'<div class="gap"></div>':'<div class="blk">'+ly(raw)+'</div>');
+  }
+  return {html:out.join(''),len:max};
+}
+function chartHTML(s,capo){
+  if(!s.chart.trim()) return '<div class="chart"><div class="chart-empty">Este canto aún no tiene letra ni acordes. Toca Editar y pégalos.</div></div>';
+  var r=renderChart(s,ui.key,capo);
+  return '<div class="chart" data-len="'+r.len+'" style="font-size:'+ui.fs+'px"><div class="cols">'+r.html+'</div></div>';
+}
+/* Acomoda la letra en 1, 2, 3 o 4 columnas según el ancho, y la achica si hace falta en modo lectura. */
+function fitChart(){
+  var c=$('.chart'), cols=c&&c.querySelector('.cols'); if(!cols) return;
+  var len=(+c.dataset.len||20)+1, cs=getComputedStyle(c), gap=36, W=0.61;
+  var avail=c.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  var top=c.getBoundingClientRect().top;
+  var target=ui.read?window.innerHeight-top-26:Math.max(420,window.innerHeight-140);
+  function tryFs(f){
+    var maxCols=Math.max(1,Math.floor((avail+gap)/(len*W*f+gap)));
+    c.style.fontSize=f+'px'; cols.style.columnGap=gap+'px';
+    for(var n=1;n<=maxCols;n++){ cols.style.columnCount=n; if(cols.scrollHeight<=target) return n; }
+    cols.style.columnCount=maxCols; return 0;
+  }
+  var f=ui.fs;
+  if(len*W*f>avail) f=Math.max(11,Math.floor(avail/(len*W)));
+  var n=tryFs(f);
+  if(!n && ui.read){ while(!n && f>14){ f--; n=tryFs(f); } }
+}
+
+/* ---------- importar de otras páginas ---------- */
+var SOLRE=/^(Do|Re|Mi|Fa|Sol|La|Si)([#b]?)((?:m(?!aj)|maj|min|dim|aug|sus|add|M|\d|\([^)]*\)|[#b]\d)*)(?:\/(Do|Re|Mi|Fa|Sol|La|Si)([#b]?))?$/;
+var SOLBASE={Do:'C',Re:'D',Mi:'E',Fa:'F',Sol:'G',La:'A',Si:'B'};
+function solToLetter(tok){ var m=SOLRE.exec(tok); if(!m) return tok; return SOLBASE[m[1]]+m[2]+m[3]+(m[4]?'/'+SOLBASE[m[4]]+m[5]:''); }
+function isSolLine(l){
+  var t=l.trim().split(/\s+/); if(!t[0]) return false; var n=0;
+  for(var i=0;i<t.length;i++){ if(SOLRE.test(t[i])) n++; else if(!PASS.test(t[i])) return false; }
+  return n>0;
+}
+function convertSolfege(lines){
+  var sol=0,lt=0; lines.forEach(function(l){ if(isChordLine(l)) lt++; else if(isSolLine(l)) sol++; });
+  if(sol<2||sol<=lt) return lines;
+  return lines.map(function(l){ return (!isChordLine(l)&&isSolLine(l))?l.replace(/\S+/g,function(w){return SOLRE.test(w)?solToLetter(w):w;}):l; });
+}
+function parseKeyToken(tok){
+  tok=tok.replace(/[.,;]+$/,'');
+  var m=/^([A-G][#b]?)(m|min|minor|menor)?$/.exec(tok);
+  if(m) return {k:ROOT[m[1]],minor:!!m[2]};
+  var n=tok.charAt(0).toUpperCase()+tok.slice(1).toLowerCase();
+  m=/^(Do|Re|Mi|Fa|Sol|La|Si)([#b]?)(m|min|menor)?$/.exec(n);
+  if(m) return {k:ROOT[SOLBASE[m[1]]+m[2]],minor:!!m[3]};
+  return null;
+}
+function collectChords(text){
+  var res=[];
+  function add(tok){ var m=CHRE.exec(tok); if(!m) return; var s=m[2]; res.push({r:ROOT[m[1]],m:/^(m(?!aj)|min)/.test(s),dim:/^(dim|°|º)/.test(s)}); }
+  text.split('\n').forEach(function(l){
+    if(isSection(l)) return;
+    if(/\[[A-G][^\]]*\]/.test(l)){ (l.match(/\[[^\]]+\]/g)||[]).forEach(function(x){ add(x.slice(1,-1)); }); }
+    else if(isChordLine(l)) l.trim().split(/\s+/).forEach(add);
+  });
+  return res;
+}
+function detectKey(ch){
+  if(!ch.length) return null;
+  var best=0,bs=-1,f=ch[0],l=ch[ch.length-1];
+  for(var k=0;k<12;k++){
+    var sc=0;
+    ch.forEach(function(c){
+      var d=mod(c.r-k), ok=false;
+      if(c.dim) ok=(d===11||d===2);
+      else if(!c.m){ ok=(d===0||d===5||d===7); if(!ok&&d===10) sc+=0.3; }
+      else ok=(d===2||d===4||d===9);
+      if(ok) sc+=1;
+    });
+    if(f.r===k&&!f.m) sc+=2;
+    if(l.r===k&&!l.m) sc+=2;
+    if(sc>bs){bs=sc;best=k;}
+  }
+  var rm=mod(best+9), ev=0, evm=0;
+  if(f.r===best&&!f.m) ev++; if(l.r===best&&!l.m) ev++;
+  if(f.r===rm&&f.m) evm++; if(l.r===rm&&l.m) evm++;
+  function cnt(r,m){ return ch.filter(function(c){return c.r===r&&c.m===m;}).length; }
+  if(evm>ev||(evm===ev&&cnt(rm,true)>cnt(best,false))) return {k:rm,minor:true};
+  return {k:best,minor:false};
+}
+function parseImport(raw){
+  var t=String(raw).replace(/\r/g,'').replace(/[\u00a0\u2007\u202f]/g,' ').replace(/\t/g,'    ').replace(/♭/g,'b').replace(/♯/g,'#')
+    .replace(/\[\/?(?:ch|tab)\]/gi,'').replace(/<br\s*\/?>/gi,'\n').replace(/<\/?[a-z][^>]*>/gi,'');
+  var lines=convertSolfege(t.split('\n').map(function(l){return l.replace(/\s+$/,'');}));
+  var info={key:null,minor:false,capo:0}, body=[], m;
+  lines.forEach(function(l){
+    if((m=l.match(/^\s*(?:key|tono|tonalidad|tom)\s*(?:of|de)?\s*[:\-]?\s*(\S+)\s*$/i))){ var pk=parseKeyToken(m[1]); if(pk){ info.key=pk.k; info.minor=pk.minor; return; } }
+    if((m=l.match(/^\s*capo\s*(?:en|on|:|-)?\s*(?:el\s*)?(?:traste\s*)?(\d{1,2})\b/i))||(m=l.match(/^\s*(\d{1,2})\s*(?:º|°|st|nd|rd|th|er|o)?\s*(?:fret|traste)\s+capo/i))){ info.capo=+m[1]; return; }
+    if(/^\s*(?:tuning|afinaci[oó]n)\b/i.test(l)) return;
+    if(/^\s*(?:chords?|acordes|cifra|lyrics|letra|print|imprimir|copiar|copy|transpose|transponer|auto-?scroll)\s*$/i.test(l)) return;
+    body.push(l);
+  });
+  var title='',artist='',i=0;
+  while(i<body.length&&!body[i].trim()) i++;
+  if(i<body.length){
+    var L=body[i].trim(), nx=body[i+1];
+    var plain=!isChordLine(L)&&!isSection(L)&&!/\[[A-G][^\]]*\]/.test(L)&&L.length<=70;
+    var nextOk=nx===undefined||!nx.trim()||isSection(nx)||isChordLine(nx);
+    if(plain&&nextOk){
+      var sp=L.match(/^(.+?)\s+(?:-|–|—|by)\s+(.+)$/i);
+      title=(sp?sp[1]:L).replace(/\s*\(?(?:chords?|acordes|cifra)\)?\s*$/i,'').trim(); artist=sp?sp[2].trim():'';
+      body.splice(i,1);
+    }
+  }
+  var clean=[], blank=true;
+  body.forEach(function(l){ if(!l.trim()){ if(!blank) clean.push(''); blank=true; } else { clean.push(l); blank=false; } });
+  while(clean.length&&!clean[clean.length-1]) clean.pop();
+  var text=clean.join('\n'), chords=collectChords(text), k=7, minor=false, note='';
+  var det=detectKey(chords);
+  if(!chords.length){ note='No encontré acordes en el texto. Revisa que los copiaste junto con la letra.'; if(info.key!==null){ k=info.key; minor=info.minor; } }
+  else if(info.capo){
+    k=mod(det.k+info.capo); minor=det.minor;
+    text=shiftText(text,info.capo,useFlats(k,minor));
+    note='La página usaba capo '+info.capo+'. Pasé los acordes a la tonalidad real ('+keyName(k,minor)+'); el capo lo eliges tú abajo.';
+  } else if(info.key!==null){ k=info.key; minor=info.minor; note='Tonalidad tomada de la página: '+keyName(k,minor)+'. Revísala.'; }
+  else { k=det.k; minor=det.minor; note='Tonalidad estimada por los acordes: '+keyName(k,minor)+'. Revísala y corrígela si no es.'; }
+  return {title:title,artist:artist,k:k,minor:minor,chart:text,note:note};
+}
+function importHTML(){
+  return '<button class="btn sm back" data-a="impcancel" style="margin-bottom:12px">← Cancelar</button>'+
+   '<div class="head"><h2>Pegar canto de otra página</h2><div class="sub">Copia la letra con acordes desde cualquier página (Ultimate Guitar, Cifraclub, LaCuerda, una nota) y pégala aquí. La app limpia el texto, pasa Do-Re-Mi a letras si hace falta y detecta la tonalidad.</div></div>'+
+   '<div class="form"><textarea class="textarea mono" id="imp-text" rows="16" placeholder="Pega aquí el canto con sus acordes" spellcheck="false"></textarea>'+
+   '<label class="f">…o abre un archivo de texto<input class="input" type="file" id="imp-file" accept=".txt,.pro,.cho,.chordpro,text/plain"></label>'+
+   '<div class="actions"><button class="btn primary" data-a="impgo">Convertir y revisar</button><button class="btn" data-a="impcancel">Cancelar</button></div></div>';
+}
+
+/* ---------- utilidades ---------- */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function $(s,r){return (r||document).querySelector(s);}
+function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-3);}
+function pad(n){return (n<10?'0':'')+n;}
+function isoOf(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function today(){return isoOf(new Date());}
+function dayNum(iso){var p=iso.split('-').map(Number);return Math.round(Date.UTC(p[0],p[1]-1,p[2])/864e5);}
+function daysSince(iso){return dayNum(today())-dayNum(iso);}
+function dAgo(n){var d=new Date();d.setDate(d.getDate()-n);return isoOf(d);}
+function ago(n){ if(n<=0) return 'hoy'; if(n===1) return 'ayer'; if(n<14) return 'hace '+n+' días'; if(n<60) return 'hace '+Math.round(n/7)+' semanas'; var m=Math.round(n/30); return m<=1?'hace 1 mes':'hace '+m+' meses'; }
+function fmtDate(iso){ try{ var p=iso.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }catch(e){return iso;} }
+function circ(a,b){var d=mod(a-b);return Math.min(d,12-d);}
+
+/* ---------- datos ---------- */
+var SK='libro-cantos.v1', memOnly=false;
+function seed(){
+  var s1={id:uid(),example:true,cats:['calmada'],title:'Mi roca (ejemplo)',artist:'Canto de muestra',orig:7,minor:false,keys:[7,9],tempo:72,rhythm:'Balada 4/4',tags:['ejemplo','adoración'],notes:'Canto de muestra para probar la app. Bórralo cuando agregues los tuyos.',
+    chart:'[Verso]\nG              C\nTú eres mi roca en la tormenta\nEm             D\nMi refugio y mi canción\n\n[Coro]\nC         G\nDescanso en ti\nEm        D         C\nDescanso en ti, Señor\n',links:[],history:[{d:dAgo(48),k:7},{d:dAgo(20),k:9}]};
+  var s2={id:uid(),example:true,cats:['calmada','himno'],title:'Gracias hoy (ejemplo)',artist:'Canto de muestra',orig:2,minor:false,keys:[0,2,4],tempo:76,rhythm:'Balada 4/4',tags:['ejemplo','gratitud'],notes:'',
+    chart:'[Verso]\nD            A\nGracias por la mañana\nBm           G\nGracias por tu paz\n\n[Coro]\nG        D\nGracias hoy\nA        Bm   G\nGracias siempre, mi Dios\n',links:[],history:[{d:dAgo(9),k:2}]};
+  var s3={id:uid(),example:true,cats:['movida','corito'],title:'Alegría (ejemplo)',artist:'Canto de muestra',orig:9,minor:false,keys:[7,9,11],tempo:122,rhythm:'Rápido 4/4',tags:['ejemplo','alabanza'],notes:'',
+    chart:'[Coro]\n[A]Alegría, alegría, [D]hay alegría en el [A]cielo\n[A]Alegría, alegría, [E]canta con nosotros hoy\n',links:[],history:[]};
+  var s5={id:uid(),example:true,cats:['corito','chanting'],title:'Aleluya (ejemplo)',artist:'Canto de muestra',orig:7,minor:false,keys:[7,9],tempo:66,rhythm:'Medio 4/4',tags:['ejemplo'],notes:'Ejemplo de chanting: se repite para meditar.',
+    chart:'[Coro]\nG        C\nAleluya, aleluya\nG     D     G\nAleluya, aleluya\n',links:[],history:[]};
+  var s4={id:uid(),example:true,cats:['calmada','chanting'],title:'Quiero adorar (ejemplo)',artist:'Canto de muestra',orig:9,minor:true,keys:[9,4],tempo:68,rhythm:'6/8',tags:['ejemplo','adoración'],notes:'',
+    chart:'[Verso]\nAm        F\nQuiero adorar\nC         G\nQuiero esperar\nAm        F\nEn tu presencia\nE\nQuiero estar\n',links:[],history:[{d:dAgo(75),k:9}]};
+  s1.links=[s2.id]; s2.links=[s1.id];
+  return {v:1,songs:[s1,s2,s3,s4,s5],sets:[]};
+}
+function norm(d){
+  d=d||{}; d.songs=(d.songs||[]).map(function(s){return {
+    id:s.id||uid(),example:!!s.example,title:String(s.title||'Sin título'),artist:String(s.artist||''),orig:mod(+s.orig||0),minor:!!s.minor,
+    keys:(s.keys||[]).map(function(k){return mod(+k);}),tempo:s.tempo?+s.tempo:'',rhythm:String(s.rhythm||''),tags:Array.isArray(s.tags)?s.tags.map(String):[],themes:Array.isArray(s.themes)?s.themes.map(String).filter(Boolean):[],cats:Array.isArray(s.cats)?s.cats.filter(function(c){return CATS.some(function(k){return k[0]===c;});}):[],
+    notes:String(s.notes||''),chart:String(s.chart||''),links:Array.isArray(s.links)?s.links:[],capoByKey:s.capoByKey||{},
+    cloud:(s.cloud&&s.cloud.sid)?{sid:String(s.cloud.sid),vid:String(s.cloud.vid||''),h:String(s.cloud.h||''),own:!!s.cloud.own}:null,
+    history:(s.history||[]).filter(function(h){return h&&/^\d{4}-\d{2}-\d{2}$/.test(h.d);}).map(function(h){return {d:h.d,k:mod(+h.k||0)};})};});
+  d.sets=(d.sets||[]).map(function(x){return {id:x.id||uid(),name:String(x.name||''),date:/^\d{4}-\d{2}-\d{2}$/.test(x.date)?x.date:today(),items:(x.items||[]).map(function(i){var o={sid:i.sid,k:mod(+i.k||0)}; if(Array.isArray(i.parts)&&i.parts.length) o.parts=i.parts.map(Number).filter(function(n){return n>=0;}); return o;})};});
+  d.bundled=+d.bundled||0; d.v=1; return d;
+}
+function load(){
+  try{ var t=localStorage.getItem(SK); if(t){ var d=JSON.parse(t); if(d && Array.isArray(d.songs)) return norm(d); } }catch(e){ memOnly=true; }
+  var s=seed(); try{ localStorage.setItem(SK,JSON.stringify(s)); }catch(e){ memOnly=true; } return s;
+}
+var BUNDLE_V=9, BUNDLED=[];
+var BUNDLED2=[];
+var BUNDLED3=[];
+var BUNDLED4=[];
+var BUNDLED5=[];
+var BUNDLED6=[];
+var BUNDLED7=[];
+var BUNDLED8=[];
+var THEMEMAP={};
+var db=load(), bundledAdded=0;
+function applyBundle(){
+  if((db.bundled||0)>=BUNDLE_V) return;
+  if((db.bundled||0)<1){
+    var have={}; db.songs.forEach(function(x){have[x.id]=1;});
+    var add=norm({songs:BUNDLED}).songs.filter(function(x){return !have[x.id];});
+    if(add.length){
+      db.songs=db.songs.filter(function(x){return !x.example;}).concat(add);
+      var ids={}; db.songs.forEach(function(x){ids[x.id]=1;});
+      db.songs.forEach(function(x){x.links=x.links.filter(function(l){return ids[l];});});
+      db.sets.forEach(function(y){y.items=y.items.filter(function(i){return ids[i.sid];});});
+      bundledAdded+=add.length;
+    }
+  }
+  if((db.bundled||0)<2){
+    var cur={}; db.songs.forEach(function(x){cur[x.id]=x;});
+    var nw=[];
+    BUNDLED2.forEach(function(b){
+      var e=cur[b.id];
+      if(b.fill){ if(e&&!e.chart){ e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=b.keys.slice(); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(e.tags.indexOf('Cantos completos')<0) e.tags.push('Cantos completos'); } }
+      else if(!e) nw.push(b);
+    });
+    if(nw.length){ db.songs=db.songs.concat(norm({songs:nw}).songs); bundledAdded+=nw.length; }
+  }
+  if((db.bundled||0)<3){
+    var cu={}, b2={}; db.songs.forEach(function(x){cu[x.id]=x;}); BUNDLED2.forEach(function(x){b2[x.id]=x;});
+    var n3=[];
+    BUNDLED3.forEach(function(b){
+      var e=cu[b.id];
+      if(b.rep){ var o=b2[b.id]; if(e&&(!e.chart||(o&&o.chart===e.chart)||e.chart===(BUNDLED.filter(function(z){return z.id===b.id;})[0]||{}).chart)){ e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; var ks=(b.oldkeys||[]).concat(b.old==null?[]:[b.old],[b.orig]); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); } }
+      else if(!e) n3.push(b);
+    });
+    if(n3.length){ db.songs=db.songs.concat(norm({songs:n3}).songs); bundledAdded+=n3.length; }
+  }
+  if((db.bundled||0)<4){
+    var c4={}, old4={}; db.songs.forEach(function(x){c4[x.id]=x;});
+    [BUNDLED,BUNDLED2,BUNDLED3].forEach(function(L){ L.forEach(function(z){ (old4[z.id]=old4[z.id]||[]).push(z.chart); }); });
+    var n4=[];
+    function addKeys(e,arr){ var ks=e.keys.concat(arr); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); }
+    function addTag(e){ if(e.tags.indexOf('Hojas nuevas')<0) e.tags.push('Hojas nuevas'); }
+    BUNDLED4.forEach(function(b){
+      var e=c4[b.id];
+      if(b.keyonly){ if(e) addKeys(e,[b.orig].concat(b.extra||[])); }
+      else if(b.rep){ if(e&&(!e.chart||(old4[b.id]||[]).indexOf(e.chart)>=0)){ var ok=e.orig; e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=[]; addKeys(e,[ok,b.orig].concat(b.extra||[])); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(b.capo){ e.capoByKey=e.capoByKey||{}; e.capoByKey[b.orig]=b.capo; } addTag(e); } }
+      else if(!e) n4.push(b);
+    });
+    if(n4.length){ db.songs=db.songs.concat(norm({songs:n4}).songs); bundledAdded+=n4.length; }
+  }
+  if((db.bundled||0)<5){
+    var c5={}, old5={}; db.songs.forEach(function(x){c5[x.id]=x;});
+    [BUNDLED,BUNDLED2,BUNDLED3,BUNDLED4].forEach(function(L){ L.forEach(function(z){ (old5[z.id]=old5[z.id]||[]).push(z.chart); }); });
+    var n5=[];
+    function addKeys5(e,arr){ var ks=e.keys.concat(arr); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); }
+    function addTag5(e){ if(e.tags.indexOf('Cantos completos')<0) e.tags.push('Cantos completos'); }
+    BUNDLED5.forEach(function(b){
+      var e=c5[b.id];
+      if(b.keyonly){ if(e) addKeys5(e,[b.orig].concat(b.extra||[])); }
+      else if(b.rep){ if(e&&(!e.chart||(old5[b.id]||[]).indexOf(e.chart)>=0)){ var ok=e.orig; e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=[]; addKeys5(e,[ok,b.orig].concat(b.extra||[])); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(b.capo){ e.capoByKey=e.capoByKey||{}; e.capoByKey[b.orig]=b.capo; } addTag5(e); } }
+      else if(!e) n5.push(b);
+    });
+    if(n5.length){ db.songs=db.songs.concat(norm({songs:n5}).songs); bundledAdded+=n5.length; }
+  }
+  if((db.bundled||0)<6){
+    var c6={}, old6={}; db.songs.forEach(function(x){c6[x.id]=x;});
+    [BUNDLED,BUNDLED2,BUNDLED3,BUNDLED4,BUNDLED5].forEach(function(L){ L.forEach(function(z){ (old6[z.id]=old6[z.id]||[]).push(z.chart); }); });
+    var n6=[];
+    function addKeys6(e,arr){ var ks=e.keys.concat(arr); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); }
+    function addTag6(e){ if(e.tags.indexOf('Cantos completos')<0) e.tags.push('Cantos completos'); }
+    BUNDLED6.forEach(function(b){
+      var e=c6[b.id];
+      if(b.keyonly){ if(e) addKeys6(e,[b.orig].concat(b.extra||[])); }
+      else if(b.rep){ if(e&&(!e.chart||(old6[b.id]||[]).indexOf(e.chart)>=0)){ var ok=e.orig; e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=[]; addKeys6(e,[ok,b.orig].concat(b.extra||[])); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(b.capo){ e.capoByKey=e.capoByKey||{}; e.capoByKey[b.orig]=b.capo; } addTag6(e); } }
+      else if(!e) n6.push(b);
+    });
+    if(n6.length){ db.songs=db.songs.concat(norm({songs:n6}).songs); bundledAdded+=n6.length; }
+  }
+  if((db.bundled||0)<7){
+    var c7={}, old7={}; db.songs.forEach(function(x){c7[x.id]=x;});
+    [BUNDLED,BUNDLED2,BUNDLED3,BUNDLED4,BUNDLED5,BUNDLED6].forEach(function(L){ L.forEach(function(z){ (old7[z.id]=old7[z.id]||[]).push(z.chart); }); });
+    var n7=[];
+    function addKeys7(e,arr){ var ks=e.keys.concat(arr); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); }
+    function addTag7(e){ if(e.tags.indexOf('Cantos completos')<0) e.tags.push('Cantos completos'); }
+    BUNDLED7.forEach(function(b){
+      var e=c7[b.id];
+      if(b.keyonly){ if(e) addKeys7(e,[b.orig].concat(b.extra||[])); }
+      else if(b.rep){ if(e&&(!e.chart||(old7[b.id]||[]).indexOf(e.chart)>=0)){ var ok=e.orig; e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=[]; addKeys7(e,[ok,b.orig].concat(b.extra||[])); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(b.capo){ e.capoByKey=e.capoByKey||{}; e.capoByKey[b.orig]=b.capo; } addTag7(e); } }
+      else if(!e) n7.push(b);
+    });
+    if(n7.length){ db.songs=db.songs.concat(norm({songs:n7}).songs); bundledAdded+=n7.length; }
+  }
+  if((db.bundled||0)<8){
+    var c8={}, old8={}; db.songs.forEach(function(x){c8[x.id]=x;});
+    [BUNDLED,BUNDLED2,BUNDLED3,BUNDLED4,BUNDLED5,BUNDLED6,BUNDLED7].forEach(function(L){ L.forEach(function(z){ (old8[z.id]=old8[z.id]||[]).push(z.chart); }); });
+    var n8=[];
+    function addKeys8(e,arr){ var ks=e.keys.concat(arr); e.keys=ks.filter(function(k,i){return ks.indexOf(k)===i;}); }
+    function addTag8(e){ if(e.tags.indexOf('Cantos completos')<0) e.tags.push('Cantos completos'); }
+    BUNDLED8.forEach(function(b){
+      var e=c8[b.id];
+      if(b.keyonly){ if(e) addKeys8(e,[b.orig].concat(b.extra||[])); }
+      else if(b.rep){ if(e&&(!e.chart||(old8[b.id]||[]).indexOf(e.chart)>=0)){ var ok=e.orig; e.chart=b.chart; e.orig=b.orig; e.minor=b.minor; e.keys=[]; addKeys8(e,[ok,b.orig].concat(b.extra||[])); e.notes=(e.notes||'').replace(/^acordes[^.\n]*\.?\s*/i,'').replace(/^[\s.,;|]+/,''); if(b.notes) e.notes=(e.notes?e.notes+'\n':'')+b.notes; if(b.capo){ e.capoByKey=e.capoByKey||{}; e.capoByKey[b.orig]=b.capo; } addTag8(e); } }
+      else if(!e) n8.push(b);
+    });
+    if(n8.length){ db.songs=db.songs.concat(norm({songs:n8}).songs); bundledAdded+=n8.length; }
+  }
+  if((db.bundled||0)<9){
+    db.songs.forEach(function(x){ if(!x.themes.length && THEMEMAP[x.id]) x.themes=THEMEMAP[x.id].slice(); });
+  }
+  db.bundled=BUNDLE_V; save();
+}
+applyBundle();
+function save(){ try{ localStorage.setItem(SK,JSON.stringify(db)); memOnly=false; }catch(e){ memOnly=true; } $('#warn').hidden=!memOnly; }
+function song(id){return db.songs.filter(function(s){return s.id===id;})[0];}
+function lastPlayed(s){ if(!s.history.length) return null; return s.history.slice().sort(function(a,b){return a.d<b.d?1:-1;})[0]; }
+function sinceLast(s){var l=lastPlayed(s);return l?daysSince(l.d):null;}
+function singKeys(s){return s.keys.length?s.keys:[s.orig];}
+
+/* ---------- estado de pantalla ---------- */
+var ui={tab:'songs',sel:null,edit:null,q:'',fk:'',fr:'',fc:'',ft:'',sort:'title',key:0,capo:0,fs:19,set:null,pq:'',confirm:'',partsIdx:-1,wake:false,read:false,imp:false,note:''};
+try{ var f=+localStorage.getItem('libro-cantos.fs'); if(f>=13&&f<=40) ui.fs=f; }catch(e){}
+var wide=function(){return window.matchMedia('(min-width:880px)').matches;};
+function pickSong(id){ var s=song(id); ui.sel=id; ui.edit=null; ui.confirm=''; ui.imp=false; ui.note=''; if(s){ ui.key=s.orig; ui.capo=(s.capoByKey||{})[ui.key]||0; } }
+
+function toast(msg){
+  var old=$('.toast'); if(old) old.remove();
+  var t=document.createElement('div'); t.className='toast'; t.setAttribute('role','status'); t.textContent=msg; document.body.appendChild(t);
+  setTimeout(function(){ if(t.parentNode) t.remove(); },2600);
+}
+
+/* ---------- CANTOS ---------- */
+function buildSongs(){
+  var rh={}; db.songs.forEach(function(s){ if(s.rhythm) rh[s.rhythm]=1; });
+  $('#main').innerHTML=
+   '<div class="split" id="split">'+
+    '<section class="pane list-pane" aria-label="Lista de cantos">'+
+     '<div class="toolbar">'+
+      '<input class="input" id="f-q" type="search" placeholder="Buscar canto, autor, tema o etiqueta" value="'+esc(ui.q)+'" autocomplete="off">'+
+      '<div class="row2">'+
+       '<select class="select" id="f-key" aria-label="Filtrar por tonalidad"><option value="">Toda tonalidad</option>'+LBL.map(function(n,i){return '<option value="'+i+'"'+(ui.fk===String(i)?' selected':'')+'>'+n+'</option>';}).join('')+'</select>'+
+       '<select class="select" id="f-rhy" aria-label="Filtrar por ritmo"><option value="">Todo ritmo</option>'+Object.keys(rh).sort().map(function(r){return '<option'+(ui.fr===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select>'+
+      '</div>'+
+      '<div class="row2">'+
+       '<select class="select" id="f-cat" aria-label="Filtrar por categoría"><option value="">Toda categoría</option>'+CATS.map(function(c){return '<option value="'+c[0]+'"'+(ui.fc===c[0]?' selected':'')+'>'+c[1]+'</option>';}).join('')+'</select>'+
+       '<select class="select" id="f-sort" aria-label="Ordenar">'+[['title','Orden alfabético'],['stale','Más tiempo sin tocar'],['recent','Tocados hace poco'],['freq','Más tocados']].map(function(o){return '<option value="'+o[0]+'"'+(ui.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
+      '</div>'+
+      '<select class="select" id="f-theme" aria-label="Filtrar por tema"><option value="">Todo tema</option>'+themeOpts()+'</select>'+
+      '<div class="row2"><button class="btn primary" data-a="new">+ Nuevo canto</button><button class="btn" data-a="impstart">Pegar de otra página</button></div>'+
+     '</div>'+
+     '<div class="list" id="list"></div>'+
+    '</section>'+
+    '<section class="pane detail-pane" id="detail" aria-live="polite"></section>'+
+   '</div>';
+  renderList(); renderDetail(); syncSplit();
+}
+function themeOpts(){
+  var c={}; db.songs.forEach(function(s){ s.themes.forEach(function(t){ c[t]=(c[t]||0)+1; }); });
+  return Object.keys(c).sort(function(a,b){return a.localeCompare(b,'es');}).map(function(t){return '<option value="'+esc(t)+'"'+(ui.ft===t?' selected':'')+'>'+esc(t)+' ('+c[t]+')</option>';}).join('');
+}
+function syncSplit(){ var el=$('#split'); if(el) el.classList.toggle('has-sel',!!(ui.sel||ui.edit||ui.imp)); }
+function filtered(){
+  var q=ui.q.trim().toLowerCase();
+  var a=db.songs.filter(function(s){
+    if(ui.fk!=='' && singKeys(s).indexOf(+ui.fk)<0) return false;
+    if(ui.fr && s.rhythm!==ui.fr) return false;
+    if(ui.fc && s.cats.indexOf(ui.fc)<0) return false;
+    if(ui.ft && s.themes.indexOf(ui.ft)<0) return false;
+    if(q){ var hay=(s.title+' '+s.artist+' '+s.tags.join(' ')+' '+s.themes.join(' ')+' '+s.rhythm).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  var cmpT=function(x,y){return x.title.localeCompare(y.title,'es');};
+  if(ui.sort==='title') a.sort(cmpT);
+  if(ui.sort==='stale') a.sort(function(x,y){var dx=sinceLast(x),dy=sinceLast(y); if(dx===null&&dy===null) return cmpT(x,y); if(dx===null) return -1; if(dy===null) return 1; return dy-dx;});
+  if(ui.sort==='recent') a.sort(function(x,y){var dx=sinceLast(x),dy=sinceLast(y); if(dx===null&&dy===null) return cmpT(x,y); if(dx===null) return 1; if(dy===null) return -1; return dx-dy;});
+  if(ui.sort==='freq') a.sort(function(x,y){return y.history.length-x.history.length||cmpT(x,y);});
+  return a;
+}
+function renderList(){
+  var el=$('#list'); if(!el) return;
+  var a=filtered();
+  if(!db.songs.length){ el.innerHTML='<div class="empty">Todavía no hay cantos. Toca “Nuevo canto” para agregar el primero.</div>'; return; }
+  if(!a.length){ el.innerHTML='<div class="empty">Ningún canto coincide con la búsqueda o los filtros.</div>'; return; }
+  el.innerHTML=a.map(function(s){
+    var d=sinceLast(s), lp=d===null?'Nunca registrado':'Último: '+ago(d);
+    var stale=d===null||d>56;
+    return '<button class="row-song" data-a="sel" data-id="'+s.id+'" aria-current="'+(s.id===ui.sel)+'">'+
+      '<span class="l1"><span class="t">'+esc(s.title)+'</span><span class="k">'+((s.keys.length||s.chart.trim())?singKeys(s).map(function(k){return keyName(k,s.minor);}).join(' · '):'')+'</span></span>'+
+      '<span class="m">'+[s.tempo?s.tempo+' bpm':'',s.rhythm,s.artist].filter(Boolean).map(esc).join(' · ')+'</span>'+
+      ((s.cats.length||s.themes.length)?'<span class="tags">'+s.cats.map(function(c){return '<span class="tag cat">'+catLabel(c)+'</span>';}).join('')+s.themes.map(function(t){return '<span class="tag th">'+esc(t)+'</span>';}).join('')+'</span>':'')+
+      '<span class="lp'+(stale?' stale':'')+'">'+lp+'</span></button>';
+  }).join('');
+}
+function bestCapo(s){ for(var c=0;c<=7;c++){ if(isEasy(ui.key-c,s.minor)) return c; } return 0; }
+function related(s){
+  var linked=s.links.map(song).filter(Boolean);
+  var auto=db.songs.filter(function(o){
+    if(o.id===s.id || s.links.indexOf(o.id)>-1) return false;
+    var sh=singKeys(s).filter(function(k){return singKeys(o).indexOf(k)>-1;});
+    if(!sh.length) return false;
+    if(s.tempo&&o.tempo&&Math.abs(s.tempo-o.tempo)>16) return false;
+    o._sh=sh; return true;
+  }).slice(0,5);
+  return {linked:linked,auto:auto};
+}
+function renderDetail(){
+  var el=$('#detail'); if(!el) return;
+  if(ui.edit){ el.innerHTML=editorHTML(); return; }
+  if(ui.imp){ el.innerHTML=importHTML(); return; }
+  var s=song(ui.sel);
+  if(!s){ el.innerHTML='<div class="empty">Elige un canto de la lista para ver su letra con acordes.</div>'; return; }
+  var keys=singKeys(s), lp=lastPlayed(s), capo=ui.capo, shape=mod(ui.key-capo), best=bestCapo(s);
+  var rel=related(s);
+  if(ui.read){ el.innerHTML=readHTML(s); fitChart(); return; }
+  var hist=s.history.slice().sort(function(a,b){return a.d<b.d?1:-1;});
+  var cap=[0,1,2,3,4,5,6,7].map(function(c){var sh=mod(ui.key-c);
+    return '<button class="chip'+(capo===c?' on':'')+(isEasy(sh,s.minor)?' easy':'')+'" data-a="capo" data-c="'+c+'" aria-pressed="'+(capo===c)+'" aria-label="Capo '+c+', formas de '+shapeName(sh,s.minor)+'">'+c+'<small>'+shapeName(sh,s.minor)+'</small></button>';}).join('');
+  var kc=LBL.map(function(n,i){return '<button class="chip'+(ui.key===i?' on':'')+(keys.indexOf(i)>-1?' sing':'')+'" data-a="key" data-k="'+i+'" aria-pressed="'+(ui.key===i)+'">'+keyName(i,s.minor)+'</button>';}).join('');
+  var linkOpts=db.songs.filter(function(o){return o.id!==s.id&&s.links.indexOf(o.id)<0;}).sort(function(a,b){return a.title.localeCompare(b.title,'es');}).map(function(o){return '<option value="'+o.id+'">'+esc(o.title)+'</option>';}).join('');
+  el.innerHTML=
+   '<button class="btn sm back" data-a="back" style="margin-bottom:12px">← Cantos</button>'+
+   '<div class="head"><h2>'+esc(s.title)+'</h2>'+
+    '<div class="sub">'+[s.artist,s.tempo?s.tempo+' bpm':'',s.rhythm].filter(Boolean).map(esc).join(' · ')+'</div>'+
+    '<div class="tags">'+s.cats.map(function(c){return '<span class="tag cat">'+catLabel(c)+'</span>';}).join('')+s.themes.map(function(t){return '<span class="tag th">'+esc(t)+'</span>';}).join('')+s.tags.map(function(t){return '<span class="tag'+(t==='ejemplo'?' ex':'')+'">'+esc(t)+'</span>';}).join('')+'</div>'+
+    '<div class="hint">'+(lp?'Último: <b>'+ago(daysSince(lp.d))+'</b> en '+keyName(lp.k,s.minor):'Aún no registrado como tocado.')+'</div>'+
+    '<div class="actions"><button class="btn primary" data-a="read">Modo lectura</button><button class="btn" data-a="edit">Editar</button>'+cloudBtns(s)+'</div>'+
+   '</div>'+
+   '<div class="card">'+
+    '<div><div class="lab">Tonalidad que suena</div><div class="chips" style="margin-top:6px">'+kc+'</div><div class="hint" style="margin-top:6px">El punto marca las tonalidades en las que sueles cantarlo. Acordes escritos en '+keyName(s.orig,s.minor)+'.</div></div>'+
+    '<div><div class="lab">Capo y formas de acordes</div><div class="chips" style="margin-top:6px">'+cap+'</div>'+
+     '<div class="hint" style="margin-top:6px">Suena en <b>'+keyName(ui.key,s.minor)+'</b> · '+(capo?'tocas formas de <b>'+shapeName(shape,s.minor)+'</b> con capo en <b>'+capo+'</b>':'sin capo')+'.'+
+     (capo!==best?' Más fácil: <button class="btn link" data-a="capo" data-c="'+best+'">'+(best?'capo '+best+' (formas de '+shapeName(mod(ui.key-best),s.minor)+')':'sin capo')+'</button>':'')+'</div></div>'+
+    '<div class="tools">'+
+     '<button class="btn sm" data-a="fs" data-d="-1" aria-label="Letra más pequeña">A−</button>'+
+     '<button class="btn sm" data-a="fs" data-d="1" aria-label="Letra más grande">A+</button>'+
+     '<button class="btn sm toggle" data-a="wake" aria-pressed="'+ui.wake+'">Mantener pantalla encendida</button>'+
+    '</div>'+
+   '</div>'+
+   chartHTML(s,capo)+
+   (s.notes.trim()?'<div class="card"><h3>Notas</h3><div style="white-space:pre-wrap">'+esc(s.notes)+'</div></div>':'')+
+   '<div class="card"><h3>Va bien con</h3>'+
+    (rel.linked.length?'<ul class="list-plain">'+rel.linked.map(function(o){return '<li><div class="grow"><button class="btn link" data-a="sel" data-id="'+o.id+'">'+esc(o.title)+'</button><span class="why">'+singKeys(o).map(function(k){return keyName(k,o.minor);}).join(' · ')+(o.tempo?' · '+o.tempo+' bpm':'')+'</span></div><button class="btn sm" data-a="unlink" data-id="'+o.id+'">Quitar</button></li>';}).join('')+'</ul>':'<div class="hint">Todavía no has vinculado ningún canto.</div>')+
+    (linkOpts?'<div class="pairrow"><select class="select" id="link-sel" aria-label="Canto a vincular">'+linkOpts+'</select><button class="btn" data-a="link">Vincular</button></div>':'')+
+    (rel.auto.length?'<div><div class="lab">Sugeridos por tonalidad y tempo</div><ul class="list-plain" style="margin-top:4px">'+rel.auto.map(function(o){return '<li><div class="grow"><button class="btn link" data-a="sel" data-id="'+o.id+'">'+esc(o.title)+'</button><span class="why">Comparten '+o._sh.map(function(k){return keyName(k,s.minor);}).join(', ')+(s.tempo&&o.tempo?' · '+o.tempo+' vs '+s.tempo+' bpm':'')+'</span></div></li>';}).join('')+'</ul></div>':'')+
+   '</div>'+
+   '<div class="card"><h3>Historial</h3>'+
+    '<div class="pairrow"><input class="input" type="date" id="played-date" value="'+today()+'" aria-label="Fecha en que se tocó"><button class="btn primary" data-a="played">Lo toqué en '+keyName(ui.key,s.minor)+'</button></div>'+
+    (hist.length?'<ul class="list-plain">'+hist.slice(0,8).map(function(h){return '<li><span>'+fmtDate(h.d)+' · <b>'+keyName(h.k,s.minor)+'</b> <span class="why">('+ago(daysSince(h.d))+')</span></span><button class="btn sm" data-a="rmhist" data-d="'+h.d+'" aria-label="Quitar registro">✕</button></li>';}).join('')+'</ul>'+(hist.length>8?'<div class="hint">Y '+(hist.length-8)+' más antiguos.</div>':''):'<div class="hint">Sin registros todavía.</div>')+
+   '</div>';
+  fitChart();
+}
+function readHTML(s){
+  var capo=ui.capo, shape=mod(ui.key-capo);
+  return '<div class="readbar"><button class="btn sm" data-a="unread">← Salir</button>'+
+   '<div class="rt"><b>'+esc(s.title)+'</b><span>Suena en '+keyName(ui.key,s.minor)+' · '+(capo?'capo '+capo+' · formas de '+shapeName(shape,s.minor):'sin capo')+'</span></div>'+
+   '<div class="rc"><span class="lab">Tono</span><button class="iconbtn" data-a="kshift" data-d="-1" aria-label="Bajar medio tono">−</button><button class="iconbtn" data-a="kshift" data-d="1" aria-label="Subir medio tono">+</button>'+
+   '<span class="lab">Capo</span><button class="iconbtn" data-a="cshift" data-d="-1" aria-label="Menos capo">−</button><button class="iconbtn" data-a="cshift" data-d="1" aria-label="Más capo">+</button>'+
+   '<button class="iconbtn" data-a="fs" data-d="-1" aria-label="Letra más pequeña">A−</button><button class="iconbtn" data-a="fs" data-d="1" aria-label="Letra más grande">A+</button></div></div>'+chartHTML(s,capo);
+}
+function editorHTML(){
+  var s=ui.edit, isNew=!song(s.id);
+  var orig=[0,1].map(function(m){return LBL.map(function(n,i){var v=i+(m?'m':'');return '<option value="'+v+'"'+((s.orig===i&&!!s.minor===!!m)?' selected':'')+'>'+n+(m?'m':'')+'</option>';}).join('');}).join('');
+  var rhy=['Balada 4/4','Medio 4/4','Rápido 4/4','Vals 3/4','6/8','12/8'];
+  return '<button class="btn sm back" data-a="cancel" style="margin-bottom:12px">← Cancelar</button>'+
+   '<div class="head"><h2>'+(isNew?'Nuevo canto':'Editar canto')+'</h2></div>'+
+   (ui.note?'<div class="notice">'+esc(ui.note)+'</div>':'')+
+   '<div class="form">'+
+    '<label class="f">Título<input class="input" id="e-title" value="'+esc(s.title)+'" autocomplete="off"></label>'+
+    '<div class="grid2"><label class="f">Autor o álbum<input class="input" id="e-artist" value="'+esc(s.artist)+'"></label>'+
+     '<label class="f">Etiquetas, separadas por coma<input class="input" id="e-tags" value="'+esc(s.tags.join(', '))+'"></label></div>'+
+    '<div><div class="lab">Categorías (puedes elegir varias)</div><div class="chips" id="e-cats" style="margin-top:6px">'+CATS.map(function(c){var on=(s.cats||[]).indexOf(c[0])>-1; return '<button type="button" class="chip wide'+(on?' on':'')+'" data-a="cc" data-c="'+c[0]+'" aria-pressed="'+on+'">'+c[1]+'</button>';}).join('')+'</div></div>'+
+    '<div><div class="lab">Temas: de qué trata el canto</div><div class="chips" id="e-themes" style="margin-top:6px">'+themeChips(s)+'</div>'+
+     '<label class="f" style="margin-top:8px">Otros temas, separados por coma<input class="input" id="e-themes-x" value="'+esc((s.themes||[]).filter(function(t){return THEMES.indexOf(t)<0;}).join(', '))+'" placeholder="Ej.: Bautismo, Misiones"></label></div>'+
+    '<div class="grid2"><label class="f">Tempo (bpm)<input class="input" id="e-tempo" type="number" inputmode="numeric" min="30" max="240" value="'+esc(s.tempo)+'"></label>'+
+     '<label class="f">Ritmo o compás<input class="input" id="e-rhythm" list="rhy" value="'+esc(s.rhythm)+'"><datalist id="rhy">'+rhy.map(function(r){return '<option value="'+r+'">';}).join('')+'</datalist></label></div>'+
+    '<label class="f">Tonalidad en que están escritos los acordes<select class="select" id="e-orig">'+orig+'</select></label>'+
+    '<div><div class="lab">Tonalidades en las que puedo cantarlo</div><div class="chips" id="e-keys" style="margin-top:6px">'+LBL.map(function(n,i){return '<button type="button" class="chip'+(s.keys.indexOf(i)>-1?' on':'')+'" data-a="kc" data-k="'+i+'" aria-pressed="'+(s.keys.indexOf(i)>-1)+'">'+n+'</button>';}).join('')+'</div></div>'+
+    '<label class="f">Letra con acordes<textarea class="textarea mono" id="e-chart" rows="14" spellcheck="false" placeholder="Pega la letra con los acordes arriba de cada línea, o con los acordes entre corchetes, por ejemplo: Tú [G]eres mi [C]roca">'+esc(s.chart)+'</textarea></label>'+
+    '<div class="hint" style="margin-top:-8px">Para marcar secciones escribe una línea como [Coro] o Verso 1.</div>'+
+    '<label class="f">Notas<textarea class="textarea" id="e-notes" rows="3">'+esc(s.notes)+'</textarea></label>'+
+    '<div class="actions"><button class="btn primary" data-a="save">Guardar canto</button><button class="btn" data-a="cancel">Cancelar</button>'+
+    (isNew?'':'<button class="btn danger'+(ui.confirm==='del'?' sure':'')+'" data-a="delete">'+(ui.confirm==='del'?'Toca otra vez para eliminar':'Eliminar')+'</button>')+'</div>'+
+   '</div>';
+}
+function themeChips(s){
+  var cur=s.themes||[];
+  return THEMES.map(function(t){var on=cur.indexOf(t)>-1; return '<button type="button" class="chip wide theme'+(on?' on':'')+'" data-a="tc" data-t="'+esc(t)+'" aria-pressed="'+on+'">'+esc(t)+'</button>';}).join('');
+}
+function saveEditor(){
+  var s=ui.edit, title=$('#e-title').value.trim();
+  if(!title){ toast('Escribe el título del canto.'); $('#e-title').focus(); return; }
+  var ov=$('#e-orig').value, minor=/m$/.test(ov);
+  s.title=title; s.artist=$('#e-artist').value.trim(); s.orig=parseInt(ov,10); s.minor=minor;
+  s.keys=[].slice.call(document.querySelectorAll('#e-keys .chip.on')).map(function(b){return +b.dataset.k;});
+  if(!s.keys.length) s.keys=[s.orig];
+  s.cats=[].slice.call(document.querySelectorAll('#e-cats .chip.on')).map(function(b){return b.dataset.c;});
+  s.tempo=+$('#e-tempo').value||''; s.rhythm=$('#e-rhythm').value.trim();
+  var th=[].slice.call(document.querySelectorAll('#e-themes .chip.on')).map(function(b){return b.dataset.t;});
+  $('#e-themes-x').value.split(',').map(function(t){return t.trim();}).filter(Boolean).forEach(function(t){ if(th.indexOf(t)<0) th.push(t); });
+  s.themes=th;
+  s.tags=$('#e-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean);
+  s.notes=$('#e-notes').value; s.chart=$('#e-chart').value;
+  if(!song(s.id)) db.songs.push(s); else db.songs[db.songs.indexOf(song(s.id))]=s;
+  save(); pickSong(s.id); ui.edit=null; ui.note=''; buildSongs(); toast('Canto guardado'); cAuto(s);
+}
+function deleteSong(id){
+  db.songs=db.songs.filter(function(s){return s.id!==id;});
+  db.songs.forEach(function(s){s.links=s.links.filter(function(l){return l!==id;});});
+  db.sets.forEach(function(x){x.items=x.items.filter(function(i){return i.sid!==id;});});
+  save(); ui.sel=null; ui.edit=null; ui.confirm=''; buildSongs(); toast('Canto eliminado');
+}
+
+/* ---------- REPERTORIOS ---------- */
+function curSet(){return db.sets.filter(function(x){return x.id===ui.set;})[0];}
+function setTitle(x){return x.name||'Servicio';}
+function buildSets(){
+  $('#main').innerHTML=
+   '<div class="split" id="split">'+
+    '<section class="pane list-pane" aria-label="Repertorios"><div class="toolbar"><button class="btn primary" data-a="setnew">+ Nuevo repertorio</button></div><div class="list" id="set-list"></div></section>'+
+    '<section class="pane detail-pane" id="set-detail"></section></div>';
+  renderSetList(); renderSetDetail(); syncSetSplit();
+}
+function syncSetSplit(){ var el=$('#split'); if(el) el.classList.toggle('has-sel',!!ui.set); }
+function renderSetList(){
+  var el=$('#set-list'); if(!el) return;
+  if(!db.sets.length){ el.innerHTML='<div class="empty">Aún no hay repertorios. Crea uno para armar el orden de los cantos de un domingo.</div>'; return; }
+  el.innerHTML=db.sets.slice().sort(function(a,b){return a.date<b.date?1:-1;}).map(function(x){
+    return '<button class="set-row" data-a="setsel" data-id="'+x.id+'" aria-current="'+(x.id===ui.set)+'"><b>'+esc(setTitle(x))+'</b><span class="hint">'+fmtDate(x.date)+' · '+x.items.length+' cantos</span></button>';
+  }).join('');
+}
+function renderSetDetail(){
+  var el=$('#set-detail'); if(!el) return; var x=curSet();
+  if(!x){ el.innerHTML='<div class="empty">Elige un repertorio o crea uno nuevo.</div>'; return; }
+  el.innerHTML=
+   '<button class="btn sm back" data-a="setback" style="margin-bottom:12px">← Repertorios</button>'+
+   '<div class="card"><div class="grid2"><label class="f">Nombre<input class="input" id="set-name" value="'+esc(x.name)+'" placeholder="Domingo por la mañana"></label>'+
+   '<label class="f">Fecha<input class="input" type="date" id="set-date" value="'+x.date+'"></label></div></div>'+
+   '<div class="startbar"><button class="btn primary" data-a="plstart">▶ Empezar</button><span class="hint" style="align-self:center">Todos los cantos juntos, deslizando de uno a otro.</span></div>'+
+   '<div class="items" id="set-items"></div>'+
+   '<div class="card"><h3>Agregar canto</h3><input class="input" id="pick-q" type="search" placeholder="Buscar por título, tema, etiqueta o ritmo" value="'+esc(ui.pq)+'" autocomplete="off"><div id="pick-results"></div></div>'+
+   '<div class="actions"><button class="btn primary" data-a="setplayed">Marcar como tocados</button><button class="btn danger'+(ui.confirm==='setdel'?' sure':'')+'" data-a="setdel">'+(ui.confirm==='setdel'?'Toca otra vez para eliminar':'Eliminar repertorio')+'</button></div>';
+  renderItems(); renderPick();
+}
+function transition(a,b){
+  var sa=song(a.sid), sb=song(b.sid), d=mod(b.k-a.k), sg=d>6?d-12:d, ab=Math.abs(sg), parts=[], cls='ok';
+  if(sg===0) parts.push('misma tonalidad');
+  else { parts.push((sg>0?'sube ':'baja ')+(ab===1?'medio tono':ab===2?'1 tono':ab===3?'1½ tonos':ab+' semitonos')); if(ab>2) cls='jump'; }
+  if(sa&&sb&&sa.tempo&&sb.tempo){ var td=Math.abs(sa.tempo-sb.tempo); if(td>25){ parts.push('cambio fuerte de tempo ('+sa.tempo+' → '+sb.tempo+')'); cls='jump'; } else if(td<=12) parts.push('tempo parecido'); }
+  if(a.sid===b.sid) return '<div class="trans ok">↓ vuelve al mismo canto</div>';
+  return '<div class="trans '+cls+'">↓ '+parts.join(' · ')+'</div>';
+}
+
+/* ---------- partes de un canto ---------- */
+function blocksOf(s){
+  var lines=String(s.chart||'').replace(/\r/g,'').split('\n'), out=[], cur=[];
+  function lyr(l){ return l!==undefined&&l.trim()&&!isSection(l)&&!isChordLine(l)&&!/\[[A-G][^\]]*\]/.test(l); }
+  function flush(){ while(cur.length&&!cur[cur.length-1].trim()) cur.pop(); if(cur.some(function(l){return l.trim();})) out.push(cur); cur=[]; }
+  for(var i=0;i<lines.length;i++){
+    var l=lines[i];
+    if(!l.trim()){
+      if(!cur.length) continue;
+      if(cur.length===1&&isSection(cur[0])) continue;
+      var j=i+1; while(j<lines.length&&!lines[j].trim()) j++;
+      if(isChordLine(cur[cur.length-1])&&lyr(lines[j])) continue;
+      flush(); continue;
+    }
+    if(isSection(l)&&cur.length&&!(cur.length===1&&isSection(cur[0]))) flush();
+    cur.push(l);
+  }
+  flush();
+  var n=0, seen={};
+  return out.map(function(b){
+    var sec=isSection(b[0]), lab;
+    if(sec){ lab=cleanSection(b[0]); if(lab===lab.toUpperCase()) lab=lab.charAt(0)+lab.slice(1).toLowerCase(); } else { n++; lab='Estrofa '+n; }
+    var key=lab.toLowerCase(); seen[key]=(seen[key]||0)+1; if(seen[key]>1) lab+=' ('+seen[key]+')';
+    var snip=''; for(var q=0;q<b.length;q++){ if(isSection(b[q])||isChordLine(b[q])) continue; snip=b[q].replace(/\[[^\]]*\]/g,'').trim(); if(snip) break; }
+    return {lines:b,label:lab,snip:snip.length>46?snip.slice(0,44)+'…':snip,coro:/coro|estribillo|chorus|refr/i.test(lab)&&!/pre/i.test(lab)};
+  });
+}
+function partsChart(s,parts){
+  if(!parts||!parts.length) return String(s.chart||'');
+  var bl=blocksOf(s), sel=parts.filter(function(i){return i>=0&&i<bl.length;}).sort(function(a,b){return a-b;});
+  if(!sel.length) return String(s.chart||'');
+  return sel.map(function(i){return bl[i].lines.join('\n');}).join('\n\n');
+}
+function partsLabel(s,parts){
+  if(!parts||!parts.length) return '';
+  var bl=blocksOf(s); return parts.filter(function(i){return i<bl.length;}).sort(function(a,b){return a-b;}).map(function(i){return bl[i].label;}).join(', ');
+}
+function partsBox(it,i){
+  var s=song(it.sid), bl=blocksOf(s);
+  if(bl.length<2) return '<div class="partsbox"><div class="hint">Este canto no tiene partes separadas todavía. Sepáralas con una línea en blanco o con títulos como [Coro] en el editor.</div></div>';
+  var sel=it.parts&&it.parts.length?it.parts:bl.map(function(b,n){return n;});
+  var hasCoro=bl.some(function(b){return b.coro;});
+  return '<div class="partsbox"><div class="lab">¿Qué partes de “'+esc(s.title)+'” van en este lugar?</div>'+
+   '<div class="quick"><button class="btn sm" data-a="ptall" data-i="'+i+'">Todo el canto</button>'+(hasCoro?'<button class="btn sm" data-a="ptcoro" data-i="'+i+'">Solo el coro</button>':'')+'<button class="btn sm" data-a="ptdone" data-i="'+i+'">Listo</button></div>'+
+   bl.map(function(b,n){var on=sel.indexOf(n)>-1; return '<button type="button" class="partrow" data-a="pt" data-i="'+i+'" data-b="'+n+'" aria-pressed="'+on+'"><span class="bx">'+(on?'✓':'')+'</span><span style="min-width:0"><b>'+esc(b.label)+'</b><small>'+esc(b.snip)+'</small></span></button>';}).join('')+'</div>';
+}
+function renderItems(){
+  var x=curSet(), el=$('#set-items'); if(!x||!el) return;
+  if(!x.items.length){ el.innerHTML='<div class="empty" style="background:var(--surface);border:1px dashed var(--line);border-radius:12px">Sin cantos todavía. Agrega el primero desde abajo.</div>'; return; }
+  el.innerHTML=x.items.map(function(it,i){
+    var s=song(it.sid); if(!s) return '';
+    var opts=LBL.map(function(n,k){return '<option value="'+k+'"'+(it.k===k?' selected':'')+'>'+(singKeys(s).indexOf(k)>-1?'• ':'')+keyName(k,s.minor)+'</option>';}).join('');
+    return (i>0?transition(x.items[i-1],it):'')+
+     '<div class="item"><span class="no">'+(i+1)+'</span><div class="grow"><button class="btn link ttl" data-a="openitem" data-i="'+i+'">'+esc(s.title)+'</button><div class="hint">'+[s.tempo?s.tempo+' bpm':'',s.rhythm].filter(Boolean).map(esc).join(' · ')+'</div>'+(it.parts&&it.parts.length?'<div class="hint only">Solo: '+esc(partsLabel(s,it.parts))+'</div>':'')+'</div>'+
+     '<div class="ctl"><select class="select ksel" data-i="'+i+'" aria-label="Tonalidad de '+esc(s.title)+'">'+opts+'</select>'+
+     '<button class="iconbtn" data-a="up" data-i="'+i+'" aria-label="Subir">↑</button><button class="iconbtn" data-a="down" data-i="'+i+'" aria-label="Bajar">↓</button><button class="iconbtn" data-a="rmitem" data-i="'+i+'" aria-label="Quitar del repertorio">✕</button></div>'+
+     '<div class="sub-actions"><button class="btn sm" data-a="parts" data-i="'+i+'" aria-expanded="'+(ui.partsIdx===i)+'">'+(it.parts&&it.parts.length?'Cambiar partes':'Elegir partes')+'</button><button class="btn sm" data-a="repeat" data-i="'+i+'">Repetir una parte al final</button></div>'+
+     (ui.partsIdx===i?partsBox(it,i):'')+'</div>';
+  }).join('');
+}
+function bestKeyNear(s,prevK){ var ks=singKeys(s), best=ks[0], bd=99; ks.forEach(function(k){var d=circ(k,prevK); if(d<bd){bd=d;best=k;}}); return {k:best,d:bd}; }
+function suggestions(x){
+  var used=x.items.map(function(i){return i.sid;}), pool=db.songs.filter(function(s){return used.indexOf(s.id)<0&&s.cats.indexOf('chanting')<0;});
+  var prev=x.items.length?x.items[x.items.length-1]:null, ps=prev&&song(prev.sid);
+  var r=pool.map(function(s){
+    var sc=0, why=[], k=singKeys(s)[0], d=sinceLast(s);
+    if(prev&&ps){
+      var b=bestKeyNear(s,prev.k); k=b.k; sc+=3-b.d*0.8;
+      why.push(b.d===0?'misma tonalidad':(mod(b.k-prev.k)>6?'baja ':'sube ')+(b.d===1?'medio tono':b.d+' semitonos'));
+      if(ps.tempo&&s.tempo){ var td=Math.abs(ps.tempo-s.tempo); sc+=Math.max(-1.5,1.5-td/20); if(td<=12) why.push('tempo parecido'); }
+      if(ps.links.indexOf(s.id)>-1){ sc+=2; why.push('vinculado'); }
+    }
+    if(d===null){ sc+=0.8; why.push('nunca registrado'); } else if(d<14){ sc-=1.5; why.push('tocado '+ago(d)); } else { sc+=Math.min(0.8,d/60); if(d>=28) why.push('sin tocar '+ago(d).replace('hace ','hace ')); }
+    return {s:s,k:k,sc:sc,why:why};
+  }).sort(function(a,b){return b.sc-a.sc;});
+  return r.slice(0,6);
+}
+function chantSuggest(x){
+  if(!x.items.length) return [];
+  var last=x.items[x.items.length-1], ls=song(last.sid), used=x.items.map(function(i){return i.sid;});
+  return db.songs.filter(function(s){return used.indexOf(s.id)<0&&s.cats.indexOf('chanting')>-1;}).map(function(s){
+    var b=bestKeyNear(s,last.k), d=sinceLast(s), sc=-b.d*2+(d===null?0.5:Math.min(1,d/60)-(d<14?1:0));
+    if(ls&&ls.tempo&&s.tempo) sc-=Math.abs(ls.tempo-s.tempo)/60;
+    return {s:s,k:b.k,d:b.d,sc:sc,days:d};
+  }).sort(function(a,b){return b.sc-a.sc;}).slice(0,6);
+}
+function renderPick(){
+  var x=curSet(), el=$('#pick-results'); if(!x||!el) return;
+  var q=ui.pq.trim().toLowerCase(), used=x.items.map(function(i){return i.sid;}), html='';
+  function row(s,k,why){ return '<li><div class="grow"><b>'+esc(s.title)+'</b><span class="why">en '+keyName(k,s.minor)+(why.length?' · '+why.join(' · '):'')+'</span></div><button class="btn sm" data-a="additem" data-id="'+s.id+'" data-k="'+k+'">Agregar</button></li>'; }
+  if(!q){
+    var sg=suggestions(x), ch=chantSuggest(x);
+    if(sg.length) html+='<div class="lab">'+(x.items.length?'Para seguir después del último':'Cantos que llevan más tiempo sin tocarse')+'</div><ul class="list-plain">'+sg.map(function(g){return row(g.s,g.k,g.why);}).join('')+'</ul>';
+    if(ch.length){
+      var last=x.items[x.items.length-1], same=ch.some(function(c){return c.d===0;});
+      html+='<div class="lab" style="margin-top:6px">'+(same?'Para cerrar con chanting en el mismo tono ('+keyName(last.k,false)+')':'Chanting en tonos cercanos al último')+'</div><ul class="list-plain">'+
+        ch.map(function(c){ var why=[c.d===0?'mismo tono':'a '+c.d+(c.d===1?' semitono':' semitonos')]; if(c.s.tempo) why.push(c.s.tempo+' bpm'); if(c.days!==null&&c.days<14) why.push('tocado '+ago(c.days)); return row(c.s,c.k,why); }).join('')+'</ul>';
+    }
+    if(!html) html='<div class="hint">Todos los cantos ya están en este repertorio.</div>';
+  } else {
+    var m=db.songs.filter(function(s){return used.indexOf(s.id)<0 && (s.title+' '+s.artist+' '+s.tags.join(' ')+' '+s.themes.join(' ')+' '+s.rhythm+' '+s.cats.map(catLabel).join(' ')).toLowerCase().indexOf(q)>-1;}).slice(0,8);
+    html=m.length?'<ul class="list-plain">'+m.map(function(s){return row(s,singKeys(s)[0],[]);}).join('')+'</ul>':'<div class="hint">Ningún canto coincide.</div>';
+  }
+  el.innerHTML=html;
+}
+
+
+/* ---------- EMPEZAR: todos los cantos del repertorio, deslizando ---------- */
+var PL={on:false,dir:'l',cols:0,fs:22,i:0,items:[]};
+function plDefaultDir(){ return Math.min(window.innerWidth,window.innerHeight)<600?'v':'l'; }
+function plLoad(){
+  var d={}; try{ d=JSON.parse(localStorage.getItem('libro-cantos.player')||'{}')||{}; }catch(e){}
+  PL.dir=(d.dir==='v'||d.dir==='l'||d.dir==='r')?d.dir:plDefaultDir();
+  PL.cols=+d.cols>=1&&+d.cols<=4?+d.cols:0;
+  PL.fs=+d.fs>=12&&+d.fs<=64?+d.fs:Math.max(20,ui.fs);
+}
+function plSave(){ try{ localStorage.setItem('libro-cantos.player',JSON.stringify({dir:PL.dir,cols:PL.cols,fs:PL.fs})); }catch(e){} }
+function plStart(){
+  var x=curSet(); if(!x) return;
+  PL.items=x.items.filter(function(it){return song(it.sid);});
+  if(!PL.items.length){ toast('Agrega cantos al repertorio primero.'); return; }
+  plLoad(); PL.on=true; PL.i=0; ui.partsIdx=-1;
+  document.body.classList.add('pl-open'); setWake(true,true);
+  plBuild(false);
+}
+function plExit(){
+  PL.on=false; var p=$('#player'); if(p) p.remove(); document.body.classList.remove('pl-open'); setWake(false);
+}
+function plPage(it,idx){
+  var s=song(it.sid), capo=(s.capoByKey||{})[it.k]||0, shape=mod(it.k-capo), N=PL.items.length;
+  var meta='Suena en '+keyName(it.k,s.minor)+(capo?' · capo '+capo+' · formas de '+shapeName(shape,s.minor):' · sin capo');
+  var only=partsLabel(s,it.parts), body;
+  var ch=partsChart(s,it.parts);
+  if(!ch.trim()) body='<div class="chart"><div class="chart-empty">Este canto aún no tiene letra ni acordes.</div></div>';
+  else { var r=renderChart({orig:s.orig,minor:s.minor,chart:ch},it.k,capo); body='<div class="chart" data-len="'+r.len+'"><div class="cols">'+r.html+'</div></div>'; }
+  var nx=PL.items[idx+1], nxs=nx&&song(nx.sid);
+  return '<section class="pl-page" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?' · Solo: '+esc(only):'')+'</span></div>'+body+
+    (nxs?'<div class="pl-next">Sigue: <b>'+esc(nxs.title)+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
+}
+function plBuild(keep){
+  var old=$('#player'); if(old) old.remove();
+  var p=document.createElement('div'); p.id='player'; p.className='player'; p.dataset.dir=PL.dir; p.setAttribute('role','dialog'); p.setAttribute('aria-label','Repertorio en pantalla');
+  var D=[['v','Hacia abajo'],['l','Hacia la izquierda'],['r','Hacia la derecha']], C=[[0,'Auto'],[1,'1'],[2,'2'],[3,'3'],[4,'4']];
+  var h=PL.dir!=='v', nextLeft=PL.dir==='r';
+  p.innerHTML=
+   '<div class="pl-bar"><button class="btn sm" data-a="plexit">✕ Salir</button><div class="pl-t"><b id="pl-pos"></b><span id="pl-nx"></span></div><button class="btn sm" data-a="plmenu" aria-label="Ajustes de pantalla">⚙ Ajustes</button></div>'+
+   '<div class="pl-set" hidden>'+
+    '<div class="row"><span class="lab">Deslizar</span>'+D.map(function(d){return '<button class="chip wide'+(PL.dir===d[0]?' on':'')+'" data-a="pldir" data-d="'+d[0]+'" aria-pressed="'+(PL.dir===d[0])+'">'+d[1]+'</button>';}).join('')+'</div>'+
+    '<div class="row"><span class="lab">Columnas</span>'+C.map(function(c){return '<button class="chip wide'+(PL.cols===c[0]?' on':'')+'" data-a="plcols" data-n="'+c[0]+'" aria-pressed="'+(PL.cols===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>'+
+    '<div class="row"><span class="lab">Tamaño de letra</span><button class="btn sm" data-a="plfs" data-d="-1" aria-label="Letra más pequeña">A−</button><b style="min-width:2.4em;text-align:center">'+PL.fs+'</b><button class="btn sm" data-a="plfs" data-d="1" aria-label="Letra más grande">A+</button></div>'+
+    '<div class="row"><button class="btn sm" data-a="plreset">Volver a lo recomendado para esta pantalla</button></div>'+
+   '</div>'+
+   '<div class="pl-track" id="pl-track">'+PL.items.map(plPage).join('')+
+   (h?'<button class="pl-nav" style="'+(nextLeft?'left':'right')+':14px" data-a="plnext" aria-label="Siguiente canto" id="pl-bn">'+(nextLeft?'‹':'›')+'</button><button class="pl-nav" style="'+(nextLeft?'right':'left')+':14px" data-a="plprev" aria-label="Canto anterior" id="pl-bp">'+(nextLeft?'›':'‹')+'</button>':'')+
+   '</div>';
+  if(keep) p.querySelector('.pl-set').hidden=false;
+  document.body.appendChild(p);
+  plFit(); plGo(PL.i,true); plUpdate();
+  var tr=$('#pl-track'), tm; tr.addEventListener('scroll',function(){ clearTimeout(tm); tm=setTimeout(plSync,90); },{passive:true});
+}
+function plFit(){
+  var tr=$('#pl-track'); if(!tr) return;
+  var vert=PL.dir==='v', W=0.61, gap=28;
+  [].forEach.call(tr.querySelectorAll('.pl-page'),function(pg){
+    var c=pg.querySelector('.chart'), cols=c&&c.querySelector('.cols'); if(!cols) return;
+    var len=(+c.dataset.len||20)+1, cs=getComputedStyle(c);
+    var avail=c.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    function set(f,n){ c.style.fontSize=f+'px'; cols.style.columnGap=gap+'px'; cols.style.columnCount=n; }
+    var f=PL.fs, n;
+    if(PL.cols>0){
+      n=PL.cols; f=Math.max(vert?13:11,Math.min(f,Math.floor((avail-gap*(n-1))/n/(len*W))));
+      set(f,n);
+      if(!vert){ var hdr=pg.querySelector('.pl-h'), tgt=pg.clientHeight-hdr.offsetHeight-30; while(cols.scrollHeight>tgt&&f>11){ f--; set(f,n); } }
+      return;
+    }
+    if(len*W*f>avail) f=Math.max(vert?13:12,Math.floor(avail/(len*W)));
+    if(vert){ set(f,1); return; }
+    var hd=pg.querySelector('.pl-h'), target=pg.clientHeight-hd.offsetHeight-30;
+    function tryF(ff){ var mc=Math.max(1,Math.floor((avail+gap)/(len*W*ff+gap))); for(var k=1;k<=mc;k++){ set(ff,k); if(cols.scrollHeight<=target) return k; } set(ff,mc); return 0; }
+    n=tryF(f); while(!n&&f>12){ f--; n=tryF(f); }
+  });
+}
+function plIndexNow(){
+  var tr=$('#pl-track'); if(!tr) return 0;
+  if(PL.dir==='v'){ var best=0,bd=1e9; [].forEach.call(tr.querySelectorAll('.pl-page'),function(pg,i){ var d=Math.abs(pg.offsetTop-tr.scrollTop-tr.offsetTop); if(d<bd){bd=d;best=i;} }); return best; }
+  return Math.max(0,Math.min(PL.items.length-1,Math.round(Math.abs(tr.scrollLeft)/Math.max(1,tr.clientWidth))));
+}
+function plSync(){ var i=plIndexNow(); if(i!==PL.i){ PL.i=i; } plUpdate(); }
+function plUpdate(){
+  var pos=$('#pl-pos'), nx=$('#pl-nx'); if(!pos) return;
+  var s=song(PL.items[PL.i].sid), n=PL.items[PL.i+1], ns=n&&song(n.sid);
+  pos.textContent=(PL.i+1)+' de '+PL.items.length+' · '+s.title;
+  nx.textContent=ns?'Sigue: '+ns.title:'Último canto';
+  var bn=$('#pl-bn'), bp=$('#pl-bp'); if(bn) bn.disabled=PL.i>=PL.items.length-1; if(bp) bp.disabled=PL.i<=0;
+}
+function plGo(i,instant){
+  var tr=$('#pl-track'); if(!tr) return; i=Math.max(0,Math.min(PL.items.length-1,i)); PL.i=i;
+  var pg=tr.querySelectorAll('.pl-page')[i]; if(!pg) return;
+  var beh=instant?'auto':'smooth';
+  if(PL.dir==='v') tr.scrollTo({top:pg.offsetTop-tr.offsetTop,behavior:beh});
+  else tr.scrollTo({left:(PL.dir==='r'?-1:1)*i*tr.clientWidth,behavior:beh});
+  plUpdate();
+}
+window.addEventListener('resize',function(){ if(PL.on){ plFit(); plGo(PL.i,true); } });
+document.addEventListener('keydown',function(e){
+  if(!PL.on) return;
+  if(e.key==='Escape'){ plExit(); return; }
+  if(PL.dir==='v'){ if(e.key==='ArrowRight'||e.key==='PageDown'){ plGo(PL.i+1); e.preventDefault(); } else if(e.key==='ArrowLeft'||e.key==='PageUp'){ plGo(PL.i-1); e.preventDefault(); } return; }
+  var fwd=PL.dir==='r'?'ArrowLeft':'ArrowRight', back=PL.dir==='r'?'ArrowRight':'ArrowLeft';
+  if(e.key===fwd||e.key==='PageDown'){ plGo(PL.i+1); e.preventDefault(); } else if(e.key===back||e.key==='PageUp'){ plGo(PL.i-1); e.preventDefault(); }
+});
+
+/* ---------- COMUNIDAD (nube: cuentas, catálogo, equipos, repertorios compartidos) ---------- */
+var CLOUD={url:'https://vezbnxulwwynrkielsog.supabase.co',key:'sb_publishable_DFfhjW1q8K3lF3MjM632lA_KVn2h9ef',cdn:'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js'};
+var C={sb:null,user:null,prof:null,mode:'in',sub:'catalog',err:'',busy:false,prog:'',songs:null,q:'',open:null,vers:[],selV:null,names:{},teams:null,sets:null,invites:null,sharing:null,auto:true,ready:false};
+try{ C.auto=localStorage.getItem('libro-cantos.auto')!=='0'; }catch(e){}
+function cShares(){ try{ return JSON.parse(localStorage.getItem('libro-cantos.shares')||'{}'); }catch(e){ return {}; } }
+function cShareSet(k,v){ var m=cShares(); if(v) m[k]=v; else delete m[k]; try{ localStorage.setItem('libro-cantos.shares',JSON.stringify(m)); }catch(e){} }
+function cErr(e){
+  var m=String((e&&e.message)||e||'');
+  var map=[[/EMAIL_NOT_INVITED|Database error saving new user/i,'Ese correo todavía no está invitado. Pídele a quien administra la app que te agregue.'],
+   [/Invalid login credentials/i,'Correo o contraseña incorrectos.'],[/Email not confirmed/i,'Falta confirmar tu correo. Revisa tu bandeja (y el spam).'],
+   [/already registered|already been registered/i,'Ese correo ya tiene cuenta. Usa "Entrar".'],[/rate limit|too many/i,'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'],
+   [/at least 6|Password should/i,'La contraseña debe tener al menos 6 caracteres.'],[/BAD_CODE/,'Ese código de equipo no existe.'],
+   [/ONLY_CREATOR_CHANGES_MAIN/,'Solo quien creó el canto puede cambiar la versión principal.'],[/NOT_AUTH/,'Primero entra a tu cuenta.'],
+   [/Failed to fetch|NetworkError|Load failed|network/i,'No hay conexión con internet.'],[/duplicate key/i,'Eso ya existe.'],[/row-level security/i,'No tienes permiso para hacer eso.'],
+   [/valid email|invalid format/i,'Escribe un correo válido.']];
+  for(var i=0;i<map.length;i++) if(map[i][0].test(m)) return map[i][1];
+  return 'Algo salió mal: '+m;
+}
+function normT(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9ñ]+/g,' ').trim(); }
+function hash(o){ var s=JSON.stringify(o), h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h); }
+function payload(s){ return {orig:s.orig,minor:s.minor,keys:s.keys,tempo:s.tempo,rhythm:s.rhythm,cats:s.cats,themes:s.themes,tags:s.tags,notes:s.notes,chart:s.chart,capoByKey:s.capoByKey||{}}; }
+function myName(){ return (C.prof&&C.prof.name)||((C.user&&C.user.email)||'').split('@')[0]; }
+function nameOf(id){ return C.names[id]||'alguien'; }
+async function cNames(ids){
+  var need=ids.filter(function(i){return i&&!C.names[i];}); need=need.filter(function(v,i){return need.indexOf(v)===i;});
+  if(!need.length) return;
+  var r=await C.sb.from('profiles').select('id,name,email').in('id',need);
+  (r.data||[]).forEach(function(p){ C.names[p.id]=p.name||String(p.email||'').split('@')[0]; });
+}
+function ck(r){ if(r&&r.error) throw r.error; return r; }
+function cInit(){
+  return new Promise(function(res,rej){
+    if(C.sb) return res();
+    function go(){ try{
+      C.sb=window.supabase.createClient(CLOUD.url,CLOUD.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'libro-cantos.auth'}});
+      C.sb.auth.onAuthStateChange(function(ev,sess){ setTimeout(function(){
+        C.user=sess?sess.user:null;
+        if(ev==='PASSWORD_RECOVERY'){ C.mode='recover'; }
+        else if(C.user&&C.mode!=='recover') C.mode='in';
+        if(!C.user){ C.prof=null; C.songs=null; C.teams=null; C.sets=null; C.invites=null; C.open=null; }
+        cRender();
+      },0); });
+      res(); }catch(e){ rej(e); } }
+    if(window.supabase&&window.supabase.createClient) return go();
+    var sc=document.createElement('script'); sc.src=CLOUD.cdn; sc.onload=go; sc.onerror=function(){ rej(new Error('Failed to fetch')); };
+    document.head.appendChild(sc);
+  });
+}
+async function cStart(){
+  try{
+    await cInit();
+    var g=await C.sb.auth.getSession(); C.user=(g.data&&g.data.session)?g.data.session.user:null;
+    if(C.user) await cProfile();
+    C.ready=true; C.err='';
+  }catch(e){ C.err=cErr(e); }
+  cRender();
+}
+async function cProfile(){
+  var r=await C.sb.from('profiles').select('id,email,name,is_admin').eq('id',C.user.id).maybeSingle();
+  C.prof=r.data||null; if(C.prof) C.names[C.prof.id]=C.prof.name||String(C.prof.email).split('@')[0];
+}
+async function cRun(fn,okMsg){
+  if(C.busy) return; C.busy=true; C.err='';
+  try{ await fn(); if(okMsg) toast(okMsg); }catch(e){ C.err=cErr(e); toast(C.err); }
+  C.busy=false; C.prog=''; cRender(); if(ui.tab==='songs') renderDetail();
+}
+function cRender(){ if(ui.tab==='cloud') buildCloud(); }
+function buildCloud(){
+  if(!C.ready && !C.err){ $('#main').innerHTML='<div class="page"><div class="card"><div class="hint">Conectando…</div></div></div>'; cStart(); return; }
+  var h='<div class="page" id="cl">';
+  if(C.err&&!C.user&&!C.ready) h+='<div class="card"><h3>Comunidad</h3><div class="hint">'+esc(C.err)+'</div><div class="hint">Tu libro sigue funcionando sin internet. Para usar la comunidad necesitas conexión.</div><div class="actions"><button class="btn" data-a="cl-retry">Reintentar</button></div></div>';
+  else if(!C.user) h+=cAuthHTML();
+  else h+=cHomeHTML();
+  $('#main').innerHTML=h+'</div>';
+  if(C.user&&C.mode!=='recover') cLoadSub();
+}
+function cAuthHTML(){
+  var m=C.mode, h='<div class="card"><h3>Comunidad</h3><div class="hint">Comparte cantos y repertorios con otras iglesias y grupos de alabanza. Por ahora el acceso es solo por invitación.</div></div>';
+  var err=C.err?'<div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div>':'';
+  if(m==='recover') return h+'<div class="card"><h3>Nueva contraseña</h3><label class="f">Escribe tu nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-newpw">Guardar contraseña</button></div></div>';
+  if(m==='reset') return h+'<div class="card"><h3>Recuperar contraseña</h3><label class="f">Correo<input class="input" id="cl-email" type="email" autocomplete="email" value="'+esc(C.lastEmail||'')+'"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-reset">Enviar enlace</button><button class="btn" data-a="cl-mode" data-m="in">Volver</button></div></div>';
+  var up=m==='up';
+  return h+'<div class="card"><h3>'+(up?'Crear cuenta':'Entrar')+'</h3>'+
+   (up?'<label class="f">Tu nombre<input class="input" id="cl-name" autocomplete="name"></label>':'')+
+   '<label class="f">Correo<input class="input" id="cl-email" type="email" autocomplete="email" value="'+esc(C.lastEmail||'')+'"></label>'+
+   '<label class="f">Contraseña'+(up?' (mínimo 6 caracteres)':'')+'<input class="input" id="cl-pass" type="password" autocomplete="'+(up?'new-password':'current-password')+'"></label>'+err+
+   '<div class="actions"><button class="btn primary" data-a="'+(up?'cl-signup':'cl-login')+'"'+(C.busy?' disabled':'')+'>'+(up?'Crear cuenta':'Entrar')+'</button>'+
+   '<button class="btn" data-a="cl-mode" data-m="'+(up?'in':'up')+'">'+(up?'Ya tengo cuenta':'Crear cuenta')+'</button></div>'+
+   (up?'':'<div class="actions"><button class="btn" data-a="cl-mode" data-m="reset">Olvidé mi contraseña</button></div>')+
+   (up?'<div class="hint">Solo funciona con el correo al que te invitaron.</div>':'')+'</div>';
+}
+function cHomeHTML(){
+  var subs=[['catalog','Catálogo'],['teams','Equipos'],['sets','Repertorios'],['acct','Cuenta']];
+  var h='<div class="chips" role="tablist" style="margin-bottom:12px">'+subs.map(function(s){return '<button class="chip wide'+(C.sub===s[0]?' on':'')+'" data-a="cl-sub" data-s="'+s[0]+'" aria-pressed="'+(C.sub===s[0])+'">'+s[1]+'</button>';}).join('')+'</div>';
+  if(C.err) h+='<div class="card"><div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div></div>';
+  if(C.prog) h+='<div class="card"><div class="hint">'+esc(C.prog)+'</div></div>';
+  return h+'<div id="cl-body"></div>';
+}
+async function cLoadSub(){
+  var body=$('#cl-body'); if(!body) return;
+  try{
+    if(C.sub==='catalog'){ if(!C.songs) await cLoadSongs(); if(C.open) await cLoadOpen(); }
+    else if(C.sub==='teams') await cLoadTeams();
+    else if(C.sub==='sets') await cLoadSets();
+    else if(C.sub==='acct'){ if(C.prof&&C.prof.is_admin) await cLoadInvites(); }
+  }catch(e){ C.err=cErr(e); }
+  body=$('#cl-body'); if(!body) return;
+  body.innerHTML=C.sub==='catalog'?(C.open?cOpenHTML():cCatalogHTML()):C.sub==='teams'?cTeamsHTML():C.sub==='sets'?cSetsHTML():cAcctHTML();
+}
+/* --- catálogo --- */
+async function cLoadSongs(){ var r=ck(await C.sb.from('songs').select('id,title,artist,created_by,main_version').order('title').limit(3000)); C.songs=r.data||[]; }
+function localOf(sid,title){ var a=db.songs.filter(function(s){return s.cloud&&s.cloud.sid===sid;})[0]; if(a) return a; var n=normT(title); return db.songs.filter(function(s){return !s.cloud&&normT(s.title)===n;})[0]; }
+function cCatalogHTML(){
+  var q=normT(C.q), list=(C.songs||[]).filter(function(s){return !q||normT(s.title+' '+s.artist).indexOf(q)>-1;});
+  var h='<div class="card"><h3>Catálogo común</h3><div class="hint">'+(C.songs||[]).length+' cantos compartidos por todos los usuarios. Elige uno para ver sus versiones y agregarlo a tu libro.</div>'+
+   '<input class="input" id="cl-q" type="search" placeholder="Buscar por título o autor" value="'+esc(C.q)+'" autocomplete="off" aria-label="Buscar en el catálogo"></div>';
+  if(!list.length) return h+'<div class="card"><div class="hint">'+((C.songs||[]).length?'No hay resultados.':'Todavía no hay cantos. Comparte el primero desde la pestaña Cantos o en Cuenta → "Subir mis cantos".')+'</div></div>';
+  h+='<div class="card" style="gap:0;padding:4px 0">'+list.slice(0,150).map(function(s){
+    var mine=localOf(s.id,s.title);
+    return '<button class="btn" style="justify-content:space-between;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;min-height:52px;width:100%" data-a="cl-open" data-id="'+s.id+'"><span><b>'+esc(s.title)+'</b>'+(s.artist?'<br><small class="hint">'+esc(s.artist)+'</small>':'')+'</span>'+(mine?'<small class="hint">✓ en tu libro</small>':'')+'</button>';}).join('')+
+   (list.length>150?'<div class="hint" style="padding:10px 16px">Mostrando 150 de '+list.length+'. Escribe para buscar.</div>':'')+'</div>';
+  return h;
+}
+async function cLoadOpen(){
+  if(C.vers.length&&C.vers[0].song_id===C.open) return;
+  var r=ck(await C.sb.from('song_versions').select('id,song_id,author,name,data,updated_at').eq('song_id',C.open).order('created_at'));
+  C.vers=r.data||[]; await cNames(C.vers.map(function(v){return v.author;}).concat((C.songs||[]).filter(function(s){return s.id===C.open;}).map(function(s){return s.created_by;})));
+  var cs=(C.songs||[]).filter(function(s){return s.id===C.open;})[0];
+  if(!C.selV||!C.vers.some(function(v){return v.id===C.selV;})) C.selV=(cs&&cs.main_version)||(C.vers[0]&&C.vers[0].id);
+}
+function cOpenHTML(){
+  var cs=(C.songs||[]).filter(function(s){return s.id===C.open;})[0]; if(!cs) return '<div class="card"><button class="btn" data-a="cl-back">← Catálogo</button></div>';
+  var v=C.vers.filter(function(x){return x.id===C.selV;})[0], d=v?v.data:{}, mineCreator=cs.created_by===C.user.id;
+  var h='<div class="card"><div class="actions"><button class="btn" data-a="cl-back">← Catálogo</button></div><h3>'+esc(cs.title)+'</h3>'+(cs.artist?'<div class="hint">'+esc(cs.artist)+'</div>':'')+
+   '<div class="hint">Subido por '+esc(nameOf(cs.created_by))+'. Versiones:</div><div class="chips">'+C.vers.map(function(x){
+     return '<button class="chip wide'+(x.id===C.selV?' on':'')+'" data-a="cl-ver" data-id="'+x.id+'" aria-pressed="'+(x.id===C.selV)+'">'+(x.id===cs.main_version?'★ ':'')+esc(x.name||'Versión')+' · '+esc(nameOf(x.author))+'</button>';}).join('')+'</div>';
+  if(v){
+    h+='<div class="hint">Tono: '+esc(keyName(d.orig||0,!!d.minor))+(d.tempo?' · '+esc(d.tempo)+' bpm':'')+(d.rhythm?' · '+esc(d.rhythm):'')+'</div>'+
+     '<pre class="mono" style="overflow:auto;max-height:46vh;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0;font-size:.875rem">'+esc(d.chart||'(sin letra)')+'</pre>'+
+     '<div class="actions"><button class="btn primary" data-a="cl-add">'+(localOf(cs.id,cs.title)?'Usar esta versión en mi libro':'Agregar a mi libro')+'</button>'+
+     (mineCreator&&v.id!==cs.main_version?'<button class="btn" data-a="cl-main">Hacer esta la versión principal</button>':'')+
+     '<button class="btn" data-a="cl-report">Reportar</button>'+
+     (mineCreator||(C.prof&&C.prof.is_admin)?'<button class="btn danger'+(ui.confirm==='cldel'?' sure':'')+'" data-a="cl-delsong">'+(ui.confirm==='cldel'?'Toca otra vez para borrar del catálogo':'Borrar del catálogo')+'</button>':'')+'</div>'+
+     (mineCreator?'':'<div class="hint">La versión principal solo la puede cambiar quien creó el canto. Si usas otros acordes, agrega el canto a tu libro, edítalo y toca "Guardar como mi versión".</div>');
+  }
+  return h+'</div>';
+}
+function songFromCloud(cs,v){
+  var d=v.data||{}; var n=norm({songs:[{id:uid(),title:cs.title,artist:cs.artist,orig:d.orig,minor:d.minor,keys:d.keys,tempo:d.tempo,rhythm:d.rhythm,cats:d.cats,themes:d.themes,tags:d.tags,notes:d.notes,chart:d.chart,capoByKey:d.capoByKey,history:[],links:[]}]}).songs[0];
+  n.cloud={sid:cs.id,vid:v.id,h:'',own:v.author===(C.user&&C.user.id)}; n.cloud.h=hash(payload(n)); return n;
+}
+function applyVersion(s,v){ var d=v.data||{}; var n=songFromCloud({id:s.cloud&&s.cloud.sid,title:s.title,artist:s.artist},v);
+  ['orig','minor','keys','tempo','rhythm','cats','themes','tags','notes','chart','capoByKey'].forEach(function(k){ s[k]=n[k]; }); s.cloud={sid:s.cloud?s.cloud.sid:n.cloud.sid,vid:v.id,h:hash(payload(s)),own:v.author===C.user.id}; }
+/* --- publicar --- */
+async function cFind(s){
+  var n=normT(s.title), hit=null;
+  if(C.songs) hit=C.songs.filter(function(x){return normT(x.title)===n;})[0];
+  else { var r=ck(await C.sb.from('songs').select('id,title,artist,created_by,main_version').ilike('title',s.title.replace(/[%_\\]/g,'\\$&')).limit(20)); hit=(r.data||[]).filter(function(x){return normT(x.title)===n;})[0]; }
+  return hit||null;
+}
+async function cPublish(s){
+  var p=payload(s), ex=await cFind(s), r;
+  if(ex){
+    r=ck(await C.sb.from('song_versions').insert({song_id:ex.id,name:'Versión de '+myName(),data:p}).select('id').single());
+    s.cloud={sid:ex.id,vid:r.data.id,h:hash(p),own:true}; return 'version';
+  }
+  r=ck(await C.sb.rpc('publish_song',{p_title:s.title,p_artist:s.artist||'',p_data:p}));
+  s.cloud={sid:r.data.song,vid:r.data.version,h:hash(p),own:true};
+  if(C.songs) C.songs.push({id:r.data.song,title:s.title,artist:s.artist||'',created_by:C.user.id,main_version:r.data.version});
+  return 'new';
+}
+async function cSaveVersion(s){
+  var p=payload(s), c=s.cloud;
+  if(c.own&&c.vid){ ck(await C.sb.from('song_versions').update({data:p}).eq('id',c.vid)); }
+  else { var r=ck(await C.sb.from('song_versions').insert({song_id:c.sid,name:'Versión de '+myName(),data:p}).select('id').single()); c.vid=r.data.id; c.own=true; }
+  c.h=hash(p); C.vers=[];
+}
+function cloudBtns(s){
+  if(!C.user) return '';
+  var c=s.cloud;
+  if(s.example) return '';
+  if(!c) return '<button class="btn" data-a="cl-pub" data-id="'+s.id+'">Compartir en el catálogo</button>';
+  if(hash(payload(s))!==c.h) return '<button class="btn" data-a="cl-savever" data-id="'+s.id+'">'+(c.own?'Actualizar mi versión en la nube':'Guardar como mi versión')+'</button>';
+  return '<span class="hint" style="align-self:center">☁ En el catálogo</span>';
+}
+function cAuto(s){
+  if(!C.user||!C.auto||s.example) return;
+  if(!s.cloud){ cPublish(s).then(function(){ save(); toast('Canto compartido en el catálogo'); }).catch(function(){}); }
+  else if(s.cloud.own&&hash(payload(s))!==s.cloud.h){ cSaveVersion(s).then(function(){ save(); }).catch(function(){}); }
+}
+async function cBulk(){
+  if(!C.songs) await cLoadSongs();
+  var todo=db.songs.filter(function(s){return !s.cloud&&!s.example&&s.chart&&s.chart.trim();}), n=0, nv=0;
+  for(var i=0;i<todo.length;i++){
+    C.prog='Subiendo '+(i+1)+' de '+todo.length+'…'; cRender();
+    try{ var r=await cPublish(todo[i]); if(r==='new') n++; else nv++; }catch(e){ if(/fetch|network/i.test(String(e.message))) throw e; }
+    if(i%10===9) save();
+  }
+  save(); toast(n+' cantos nuevos y '+nv+' versiones en el catálogo');
+}
+/* --- equipos --- */
+async function cLoadTeams(){
+  var m=ck(await C.sb.from('team_members').select('team_id,user_id,role').eq('user_id',C.user.id)).data||[];
+  var ids=m.map(function(x){return x.team_id;});
+  if(!ids.length){ C.teams=[]; return; }
+  var ts=ck(await C.sb.from('teams').select('id,name,join_code,owner').in('id',ids)).data||[];
+  var all=ck(await C.sb.from('team_members').select('team_id,user_id,role').in('team_id',ids)).data||[];
+  await cNames(all.map(function(x){return x.user_id;}));
+  C.teams=ts.map(function(t){ t.members=all.filter(function(x){return x.team_id===t.id;}); return t; });
+}
+function cTeamsHTML(){
+  var h='<div class="card"><h3>Mis equipos</h3><div class="hint">Un equipo es tu iglesia o tu grupo de alabanza. Los repertorios que compartas con el equipo los ven todos sus miembros.</div>';
+  (C.teams||[]).forEach(function(t){
+    var own=t.owner===C.user.id;
+    h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(t.name)+'</b>'+(own?' <small class="hint">(tú lo creaste)</small>':'')+
+     '<div class="hint">Código para invitar: <b class="mono" style="font-size:1.1rem;letter-spacing:.1em">'+esc(t.join_code)+'</b></div>'+
+     '<div class="hint">Miembros: '+t.members.map(function(x){return esc(nameOf(x.user_id))+(own&&x.user_id!==C.user.id?' <button class="chip" data-a="cl-kick" data-t="'+t.id+'" data-u="'+x.user_id+'" aria-label="Quitar a '+esc(nameOf(x.user_id))+'">✕</button>':'');}).join(', ')+'</div>'+
+     '<div class="actions">'+(own?'<button class="btn danger'+(ui.confirm==='tdel'+t.id?' sure':'')+'" data-a="cl-teamdel" data-t="'+t.id+'">'+(ui.confirm==='tdel'+t.id?'Toca otra vez para eliminar':'Eliminar equipo')+'</button>':'<button class="btn" data-a="cl-leave" data-t="'+t.id+'">Salir del equipo</button>')+'</div></div>';
+  });
+  if(!(C.teams||[]).length) h+='<div class="hint">Todavía no estás en ningún equipo.</div>';
+  h+='</div><div class="card"><h3>Crear un equipo</h3><label class="f">Nombre (por ejemplo, el de tu iglesia)<input class="input" id="cl-tname" autocomplete="off"></label><div class="actions"><button class="btn primary" data-a="cl-teamnew">Crear equipo</button></div></div>'+
+   '<div class="card"><h3>Unirme con un código</h3><label class="f">Código que te dieron<input class="input" id="cl-tcode" autocomplete="off" autocapitalize="characters"></label><div class="actions"><button class="btn primary" data-a="cl-join">Unirme</button></div></div>';
+  return h;
+}
+/* --- repertorios compartidos --- */
+async function cLoadSets(){
+  if(!C.teams) await cLoadTeams();
+  var rows=ck(await C.sb.from('shared_sets').select('id,owner,team_id,title,data,updated_at').order('updated_at',{ascending:false})).data||[];
+  var mine=rows.filter(function(r){return r.owner===C.user.id;}).map(function(r){return r.id;});
+  var sh=mine.length?(ck(await C.sb.from('set_shares').select('set_id,email').in('set_id',mine)).data||[]):[];
+  await cNames(rows.map(function(r){return r.owner;}));
+  C.sets=rows.map(function(r){ r.emails=sh.filter(function(x){return x.set_id===r.id;}).map(function(x){return x.email;}); return r; });
+}
+function teamName(id){ var t=(C.teams||[]).filter(function(x){return x.id===id;})[0]; return t?t.name:''; }
+function cSetsHTML(){
+  var h='<div class="card"><h3>Compartir uno de mis repertorios</h3>';
+  if(!db.sets.length) h+='<div class="hint">Aún no tienes repertorios. Crea uno en la pestaña Repertorios.</div>';
+  db.sets.slice().sort(function(a,b){return a.date<b.date?1:-1;}).slice(0,30).forEach(function(x){
+    var sid=cShares()[x.id];
+    h+='<div style="border-top:1px solid var(--line);padding-top:8px"><b>'+esc(setTitle(x))+'</b> <small class="hint">'+esc(x.date)+' · '+x.items.length+' cantos'+(sid?' · ☁ compartido':'')+'</small>'+
+      '<div class="actions"><button class="btn" data-a="cl-share" data-id="'+x.id+'">'+(sid?'Actualizar / compartir con más':'Compartir…')+'</button></div></div>';
+    if(C.sharing&&C.sharing.setId===x.id){
+      h+='<div class="card" style="background:var(--bg)"><label class="f">Con un equipo<select class="select" id="cl-sh-team"><option value="">(ninguno)</option>'+(C.teams||[]).map(function(t){return '<option value="'+t.id+'">'+esc(t.name)+'</option>';}).join('')+'</select></label>'+
+       '<label class="f">…y/o con estos correos (separados por coma)<input class="input" id="cl-sh-emails" type="text" autocomplete="off" placeholder="hermano@correo.com, otra@correo.com"></label>'+
+       '<div class="hint">Los cantos de este repertorio que aún no estén en el catálogo se agregarán para que los demás puedan abrirlos.</div>'+
+       '<div class="actions"><button class="btn primary" data-a="cl-share-go">Compartir</button><button class="btn" data-a="cl-share-x">Cancelar</button></div></div>';
+    }
+  });
+  h+='</div><div class="card"><h3>Repertorios compartidos</h3>';
+  var rows=C.sets||[];
+  if(!rows.length) h+='<div class="hint">Todavía no hay repertorios compartidos.</div>';
+  rows.forEach(function(r){
+    var mine=r.owner===C.user.id, d=r.data||{}, its=d.items||[];
+    h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(r.title||'Servicio')+'</b> <small class="hint">'+esc(d.date||'')+' · '+its.length+' cantos</small>'+
+     '<div class="hint">'+(mine?'Tú':esc(nameOf(r.owner)))+(r.team_id?' · equipo '+esc(teamName(r.team_id)||''):'')+(mine&&r.emails.length?' · con '+esc(r.emails.join(', ')):'')+'</div>'+
+     '<div class="hint">'+its.map(function(i){return esc(i.t);}).join(' · ')+'</div>'+
+     '<div class="actions"><button class="btn primary" data-a="cl-copyset" data-id="'+r.id+'">Copiar a mis repertorios</button>'+
+     (mine?'<button class="btn danger'+(ui.confirm==='sdel'+r.id?' sure':'')+'" data-a="cl-unshare" data-id="'+r.id+'">'+(ui.confirm==='sdel'+r.id?'Toca otra vez para dejar de compartir':'Dejar de compartir')+'</button>':'')+'</div></div>';
+  });
+  return h+'</div>';
+}
+async function cShareGo(){
+  var x=db.sets.filter(function(y){return y.id===C.sharing.setId;})[0]; if(!x) return;
+  var team=$('#cl-sh-team').value||null, emails=($('#cl-sh-emails').value||'').split(/[\s,;]+/).map(function(e){return e.trim().toLowerCase();}).filter(function(e){return /^\S+@\S+\.\S+$/.test(e);});
+  var old=cShares()[x.id];
+  if(!team&&!emails.length&&!old){ throw new Error('Elige un equipo o escribe al menos un correo.'); }
+  if(!C.songs) await cLoadSongs();
+  var np=0;
+  for(var i=0;i<x.items.length;i++){ var s=song(x.items[i].sid); if(s&&!s.cloud){ C.prog='Agregando "'+s.title+'" al catálogo…'; cRender(); await cPublish(s); np++; } }
+  save();
+  var data={name:x.name,date:x.date,items:x.items.map(function(it){ var s=song(it.sid); if(!s||!s.cloud) return null; var o={sid:s.cloud.sid,vid:s.cloud.vid,t:s.title,a:s.artist,k:it.k}; if(it.parts) o.parts=it.parts; return o; }).filter(Boolean)};
+  var id=old;
+  if(id){ var u=ck(await C.sb.from('shared_sets').update({title:setTitle(x),data:data,team_id:team}).eq('id',id).select('id')); if(!(u.data||[]).length) id=null; }
+  if(!id){ id=ck(await C.sb.from('shared_sets').insert({title:setTitle(x),data:data,team_id:team}).select('id').single()).data.id; }
+  cShareSet(x.id,id);
+  if(emails.length) ck(await C.sb.from('set_shares').upsert(emails.map(function(e){return {set_id:id,email:e};}),{onConflict:'set_id,email',ignoreDuplicates:true}));
+  C.sharing=null; C.sets=null;
+  toast('Repertorio compartido'+(np?' ('+np+' cantos nuevos en el catálogo)':''));
+}
+async function cCopySet(id){
+  var r=(C.sets||[]).filter(function(y){return y.id===id;})[0]; if(!r) return;
+  var its=(r.data&&r.data.items)||[], items=[], miss=0, need=[];
+  its.forEach(function(i){ if(!db.songs.some(function(s){return s.cloud&&s.cloud.sid===i.sid;})&&need.indexOf(i.vid)<0) need.push(i.vid); });
+  var vs={};
+  if(need.length){ (ck(await C.sb.from('song_versions').select('id,song_id,author,name,data').in('id',need)).data||[]).forEach(function(v){ vs[v.id]=v; }); }
+  its.forEach(function(i){
+    var s=db.songs.filter(function(z){return z.cloud&&z.cloud.sid===i.sid;})[0];
+    if(!s){ var v=vs[i.vid]; if(!v){ miss++; return; } s=songFromCloud({id:i.sid,title:i.t,artist:i.a||''},v); db.songs.push(s); }
+    var o={sid:s.id,k:i.k}; if(i.parts) o.parts=i.parts; items.push(o);
+  });
+  db.sets.push({id:uid(),name:(r.title||'Servicio'),date:today(),items:items}); save();
+  toast('Repertorio copiado a tu libro'+(miss?' ('+miss+' cantos no se pudieron abrir)':''));
+}
+/* --- cuenta --- */
+async function cLoadInvites(){ C.invites=ck(await C.sb.from('invites').select('email,is_admin').order('email')).data||[]; }
+function cAcctHTML(){
+  var un=db.songs.filter(function(s){return !s.cloud&&!s.example&&s.chart&&s.chart.trim();}).length;
+  var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
+   '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
+   '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+
+   '<div class="card"><h3>Mis cantos y la comunidad</h3>'+
+   '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
+   '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
+   '<div class="actions"><button class="btn primary" data-a="cl-bulk"'+(un?'':' disabled')+'>Subir mis '+un+' cantos al catálogo</button></div></div>'+
+   '<div class="card"><h3>Cambiar contraseña</h3><label class="f">Nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label><div class="actions"><button class="btn" data-a="cl-newpw">Cambiar</button></div></div>';
+  if(C.prof&&C.prof.is_admin){
+    h+='<div class="card"><h3>Invitaciones</h3><div class="hint">Solo estos correos pueden crear cuenta.</div>'+(C.invites||[]).map(function(i){return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>'+esc(i.email)+(i.is_admin?' <small class="hint">(admin)</small>':'')+'</span><button class="chip" data-a="cl-invdel" data-e="'+esc(i.email)+'" aria-label="Quitar invitación de '+esc(i.email)+'">✕</button></div>';}).join('')+
+     '<label class="f">Invitar a un correo<input class="input" id="cl-inv" type="email" autocomplete="off" placeholder="nombre@correo.com"></label><div class="actions"><button class="btn primary" data-a="cl-invadd">Invitar</button></div></div>';
+  }
+  return h;
+}
+/* --- acciones --- */
+function cVal(id){ var e=$('#'+id); return e?e.value.trim():''; }
+async function cloudClick(a,t){
+  var x;
+  switch(a){
+  case 'cl-retry': C.err=''; C.ready=false; C.sb=null; cRender(); break;
+  case 'cl-mode': C.lastEmail=cVal('cl-email')||C.lastEmail; C.mode=t.dataset.m; C.err=''; cRender(); break;
+  case 'cl-login': C.lastEmail=cVal('cl-email'); cRun(async function(){ var r=await C.sb.auth.signInWithPassword({email:C.lastEmail,password:$('#cl-pass').value}); if(r.error) throw r.error; C.user=r.data.user; await cProfile(); }); break;
+  case 'cl-signup': C.lastEmail=cVal('cl-email'); cRun(async function(){
+      var r=await C.sb.auth.signUp({email:C.lastEmail,password:$('#cl-pass').value,options:{data:{name:cVal('cl-name')},emailRedirectTo:location.origin+location.pathname}});
+      if(r.error) throw r.error;
+      if(r.data.session){ C.user=r.data.user; await cProfile(); }
+      else { C.mode='in'; C.err=''; toast('Revisa tu correo y toca el enlace de confirmación. Luego entra aquí.'); }
+    }); break;
+  case 'cl-reset': C.lastEmail=cVal('cl-email'); cRun(async function(){ var r=await C.sb.auth.resetPasswordForEmail(C.lastEmail,{redirectTo:location.origin+location.pathname}); if(r.error) throw r.error; C.mode='in'; },'Te enviamos un enlace para cambiar la contraseña'); break;
+  case 'cl-newpw': cRun(async function(){ var p=$('#cl-pass').value; if(p.length<6) throw new Error('at least 6'); var r=await C.sb.auth.updateUser({password:p}); if(r.error) throw r.error; C.mode='in'; if(r.data&&r.data.user){ C.user=r.data.user; await cProfile(); } },'Contraseña guardada'); break;
+  case 'cl-logout': cRun(async function(){ await C.sb.auth.signOut(); C.user=null; },'Saliste de tu cuenta'); break;
+  case 'cl-sub': C.sub=t.dataset.s; C.open=null; C.err=''; C.sharing=null; ui.confirm=''; cRender(); break;
+  case 'cl-open': C.open=t.dataset.id; C.vers=[]; C.selV=null; ui.confirm=''; cRender(); break;
+  case 'cl-back': C.open=null; ui.confirm=''; cRender(); break;
+  case 'cl-ver': C.selV=t.dataset.id; cRender(); break;
+  case 'cl-add': {
+      var cs=C.songs.filter(function(s){return s.id===C.open;})[0], v=C.vers.filter(function(y){return y.id===C.selV;})[0]; if(!cs||!v) break;
+      var ex=localOf(cs.id,cs.title);
+      if(ex){ if(!ex.cloud) ex.cloud={sid:cs.id,vid:'',h:'',own:false}; applyVersion(ex,v); save(); toast('Ahora tu canto usa esa versión'); }
+      else { var n=songFromCloud(cs,v); db.songs.push(n); save(); toast('Agregado a tu libro'); }
+      cRender(); break; }
+  case 'cl-main': cRun(async function(){ var r=ck(await C.sb.from('songs').update({main_version:C.selV}).eq('id',C.open).select('id')); if(!(r.data||[]).length) throw new Error('ONLY_CREATOR_CHANGES_MAIN'); C.songs.forEach(function(s){ if(s.id===C.open) s.main_version=C.selV; }); },'Versión principal cambiada'); break;
+  case 'cl-report': cRun(async function(){ ck(await C.sb.from('song_reports').insert({song_id:C.open,reason:'Reportado desde la app'})); },'Gracias, lo revisaremos'); break;
+  case 'cl-delsong': if(ui.confirm==='cldel'){ ui.confirm=''; cRun(async function(){ var r=ck(await C.sb.from('songs').delete().eq('id',C.open).select('id')); if(!(r.data||[]).length) throw new Error('row-level security'); db.songs.forEach(function(s){ if(s.cloud&&s.cloud.sid===C.open) delete s.cloud; }); save(); C.songs=null; C.open=null; },'Canto borrado del catálogo'); } else { ui.confirm='cldel'; cRender(); } break;
+  case 'cl-pub': x=song(t.dataset.id); cRun(async function(){ if(!C.songs) await cLoadSongs(); var r=await cPublish(x); save(); toast(r==='new'?'Canto compartido en el catálogo':'Ese canto ya existía: se guardó tu acorde como tu versión'); }); break;
+  case 'cl-savever': x=song(t.dataset.id); cRun(async function(){ await cSaveVersion(x); save(); },'Guardado en la nube'); break;
+  case 'cl-bulk': cRun(cBulk); break;
+  case 'cl-teamnew': cRun(async function(){ var n=cVal('cl-tname'); if(!n) throw new Error('Escribe el nombre del equipo.'); ck(await C.sb.from('teams').insert({name:n})); C.teams=null; },'Equipo creado'); break;
+  case 'cl-join': cRun(async function(){ var c=cVal('cl-tcode'); if(!c) throw new Error('Escribe el código.'); ck(await C.sb.rpc('join_team',{code:c})); C.teams=null; },'Ya eres parte del equipo'); break;
+  case 'cl-leave': cRun(async function(){ ck(await C.sb.from('team_members').delete().eq('team_id',t.dataset.t).eq('user_id',C.user.id)); C.teams=null; },'Saliste del equipo'); break;
+  case 'cl-kick': cRun(async function(){ ck(await C.sb.from('team_members').delete().eq('team_id',t.dataset.t).eq('user_id',t.dataset.u)); C.teams=null; },'Miembro quitado'); break;
+  case 'cl-teamdel': if(ui.confirm==='tdel'+t.dataset.t){ ui.confirm=''; cRun(async function(){ ck(await C.sb.from('teams').delete().eq('id',t.dataset.t)); C.teams=null; C.sets=null; },'Equipo eliminado'); } else { ui.confirm='tdel'+t.dataset.t; cRender(); } break;
+  case 'cl-share': C.sharing={setId:t.dataset.id}; if(!C.teams) { cRun(cLoadTeams); } else cRender(); break;
+  case 'cl-share-x': C.sharing=null; cRender(); break;
+  case 'cl-share-go': cRun(cShareGo); break;
+  case 'cl-copyset': cRun(function(){ return cCopySet(t.dataset.id); }); break;
+  case 'cl-unshare': if(ui.confirm==='sdel'+t.dataset.id){ ui.confirm=''; cRun(async function(){ ck(await C.sb.from('shared_sets').delete().eq('id',t.dataset.id)); Object.keys(cShares()).forEach(function(k){ if(cShares()[k]===t.dataset.id) cShareSet(k,null); }); C.sets=null; },'Ya no se comparte'); } else { ui.confirm='sdel'+t.dataset.id; cRender(); } break;
+  case 'cl-savename': cRun(async function(){ ck(await C.sb.from('profiles').update({name:cVal('cl-myname')}).eq('id',C.user.id)); C.names={}; await cProfile(); },'Nombre guardado'); break;
+  case 'cl-invadd': cRun(async function(){ var e=cVal('cl-inv').toLowerCase(); if(!/^\S+@\S+\.\S+$/.test(e)) throw new Error('valid email'); ck(await C.sb.from('invites').upsert({email:e},{onConflict:'email'})); C.invites=null; },'Invitación agregada'); break;
+  case 'cl-invdel': cRun(async function(){ ck(await C.sb.from('invites').delete().eq('email',t.dataset.e)); C.invites=null; },'Invitación quitada'); break;
+  }
+}
+document.addEventListener('input',function(e){ if(e.target.id==='cl-q'){ C.q=e.target.value; var b=$('#cl-body'); if(b&&C.sub==='catalog'&&!C.open){ b.innerHTML=cCatalogHTML(); var q=$('#cl-q'); if(q){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); } } } });
+document.addEventListener('change',function(e){ if(e.target.id==='cl-auto'){ C.auto=e.target.checked; try{ localStorage.setItem('libro-cantos.auto',C.auto?'1':'0'); }catch(err){} } });
+try{ if(/^https?:$/.test(location.protocol)&&(localStorage.getItem('libro-cantos.auth')||/[?&#](code|access_token|type)=/.test(location.href))) cStart(); }catch(e){}
+
+/* ---------- RESPALDO ---------- */
+function buildBackup(){
+  var nEx=db.songs.filter(function(s){return s.example;}).length, nH=db.songs.reduce(function(a,s){return a+s.history.length;},0);
+  $('#main').innerHTML='<div class="page">'+
+   '<div class="card"><h3>Tu información</h3><div class="stat"><div><b>'+db.songs.length+'</b><small>cantos</small></div><div><b>'+db.sets.length+'</b><small>repertorios</small></div><div><b>'+nH+'</b><small>veces registradas</small></div></div>'+
+   '<div class="hint">Todo se guarda en este dispositivo y navegador. Copia un respaldo de vez en cuando y pásalo a tu otro dispositivo para tener los mismos cantos.</div></div>'+
+   '<div class="card"><h3>Sacar respaldo</h3><div class="actions"><button class="btn primary" data-a="export">Copiar respaldo</button></div>'+
+   '<textarea class="textarea mono" id="b-out" readonly rows="5" aria-label="Texto del respaldo"></textarea><div class="hint">Pega ese texto en un mensaje o nota a ti mismo. En el otro dispositivo lo pegas aquí abajo.</div></div>'+
+   '<div class="card"><h3>Cargar respaldo</h3><textarea class="textarea mono" id="b-in" rows="5" placeholder="Pega aquí el respaldo" aria-label="Pegar respaldo"></textarea>'+
+   '<label class="f">…o elige un archivo de respaldo<input class="input" type="file" id="b-file" accept=".json,application/json,text/plain"></label>'+
+   '<div class="actions"><button class="btn primary" data-a="imp-merge">Combinar con lo que tengo</button><button class="btn danger'+(ui.confirm==='imp'?' sure':'')+'" data-a="imp-replace">'+(ui.confirm==='imp'?'Toca otra vez para reemplazar todo':'Reemplazar todo')+'</button></div>'+
+   '<div class="hint">Combinar agrega los cantos y repertorios nuevos y suma el historial. Reemplazar borra lo que hay en este dispositivo.</div></div>'+
+   (nEx?'<div class="card"><h3>Cantos de ejemplo</h3><div class="hint">Hay '+nEx+' cantos de muestra para probar la app.</div><div class="actions"><button class="btn" data-a="rm-ex">Quitar cantos de ejemplo</button></div></div>':'')+
+   '</div>';
+  $('#b-out').value=JSON.stringify(db);
+}
+function readBackup(){
+  var t=$('#b-in').value.trim(); if(!t){ toast('Pega primero el texto del respaldo.'); return null; }
+  try{ var d=JSON.parse(t); if(!d||!Array.isArray(d.songs)) throw 0; return norm(d); }catch(e){ toast('Ese texto no es un respaldo válido.'); return null; }
+}
+function mergeBackup(d){
+  var added=0;
+  d.songs.forEach(function(n){ var o=song(n.id); if(!o){ db.songs.push(n); added++; } else { n.history.forEach(function(h){ if(!o.history.some(function(x){return x.d===h.d;})) o.history.push(h); }); } });
+  d.sets.forEach(function(n){ if(!db.sets.some(function(x){return x.id===n.id;})) db.sets.push(n); });
+  return added;
+}
+
+/* ---------- pantalla ---------- */
+function renderApp(){
+  [].forEach.call(document.querySelectorAll('.tab'),function(b){ b.setAttribute('aria-current',b.dataset.tab===ui.tab?'page':'false'); });
+  if(ui.tab!=='songs') ui.read=false;
+  $('#app').classList.toggle('reading',ui.read);
+  if(ui.tab==='songs') buildSongs(); else if(ui.tab==='sets') buildSets(); else if(ui.tab==='cloud') buildCloud(); else buildBackup();
+}
+var rz; window.addEventListener('resize',function(){ clearTimeout(rz); rz=setTimeout(function(){ if(ui.tab==='songs'&&!ui.edit&&!ui.imp) fitChart(); },150); });
+try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ if(ui.tab==='songs'&&!ui.edit&&!ui.imp) fitChart(); }); }catch(e){}
+var wl=null;
+function setWake(on,quiet){
+  ui.wake=on;
+  if(on){ try{ navigator.wakeLock.request('screen').then(function(l){ wl=l; }).catch(function(){ ui.wake=false; if(!quiet) toast('Este navegador no permite mantener la pantalla encendida.'); }); }catch(e){ ui.wake=false; if(!quiet) toast('Este navegador no permite mantener la pantalla encendida.'); } }
+  else if(wl){ try{ wl.release(); }catch(e){} wl=null; }
+}
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&ui.wake) setWake(true); });
+
+document.addEventListener('click',function(e){
+  var t=e.target.closest('[data-a]'); if(!t) return;
+  var a=t.dataset.a, s, x;
+  if(a.indexOf('cl-')===0){ cloudClick(a,t); return; }
+  switch(a){
+  case 'tab': ui.tab=t.dataset.tab; ui.confirm=''; if(ui.tab==='songs'&&!ui.sel&&wide()&&db.songs.length&&!ui.edit){ var f0=filtered()[0]; if(f0) pickSong(f0.id); } renderApp(); break;
+  case 'sel': pickSong(t.dataset.id); renderList(); renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+  case 'back': ui.sel=null; renderList(); renderDetail(); syncSplit(); break;
+  case 'impstart': ui.imp=true; ui.edit=null; ui.note=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+  case 'impcancel': ui.imp=false; renderDetail(); syncSplit(); break;
+  case 'impgo': var itx=$('#imp-text').value; if(!itx.trim()){ toast('Pega primero el canto.'); break; }
+    var pi=parseImport(itx); ui.edit={id:uid(),title:pi.title,artist:pi.artist,orig:pi.k,minor:pi.minor,keys:[pi.k],tempo:'',rhythm:'',tags:[],themes:[],cats:[],notes:'',chart:pi.chart,links:[],history:[],capoByKey:{}}; ui.note=pi.note; ui.imp=false; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+  case 'read': ui.read=true; $('#app').classList.add('reading'); setWake(true,true); renderDetail(); window.scrollTo(0,0); break;
+  case 'unread': ui.read=false; $('#app').classList.remove('reading'); setWake(false); renderDetail(); break;
+  case 'kshift': s=song(ui.sel); ui.key=mod(ui.key+(+t.dataset.d)); ui.capo=(s.capoByKey||{})[ui.key]||0; renderDetail(); break;
+  case 'cshift': s=song(ui.sel); ui.capo=Math.max(0,Math.min(7,ui.capo+(+t.dataset.d))); s.capoByKey=s.capoByKey||{}; s.capoByKey[ui.key]=ui.capo; save(); renderDetail(); break;
+  case 'new': ui.imp=false; ui.note=''; ui.edit={id:uid(),title:'',artist:'',orig:7,minor:false,keys:[7],tempo:'',rhythm:'',tags:[],themes:[],cats:[],notes:'',chart:'',links:[],history:[],capoByKey:{}}; ui.confirm=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+  case 'edit': s=song(ui.sel); ui.edit=JSON.parse(JSON.stringify(s)); ui.confirm=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+  case 'cancel': ui.edit=null; ui.note=''; ui.confirm=''; if(!song(ui.sel)) ui.sel=null; renderDetail(); syncSplit(); break;
+  case 'save': saveEditor(); break;
+  case 'delete': if(ui.confirm==='del') deleteSong(ui.edit.id); else { ui.confirm='del'; t.textContent='Toca otra vez para eliminar'; t.classList.add('sure'); } break;
+  case 'kc': case 'cc': case 'tc': t.classList.toggle('on'); t.setAttribute('aria-pressed',t.classList.contains('on')); break;
+  case 'key': s=song(ui.sel); ui.key=+t.dataset.k; ui.capo=(s.capoByKey||{})[ui.key]||0; renderDetail(); break;
+  case 'capo': s=song(ui.sel); ui.capo=+t.dataset.c; s.capoByKey=s.capoByKey||{}; s.capoByKey[ui.key]=ui.capo; save(); renderDetail(); break;
+  case 'fs': ui.fs=Math.max(13,Math.min(40,ui.fs+(+t.dataset.d)*2)); try{localStorage.setItem('libro-cantos.fs',ui.fs);}catch(err){} renderDetail(); break;
+  case 'wake': setWake(!ui.wake); renderDetail(); break;
+  case 'played':
+    s=song(ui.sel); var d=$('#played-date').value||today();
+    s.history=s.history.filter(function(h){return h.d!==d;}); s.history.push({d:d,k:ui.key}); save(); renderList(); renderDetail(); toast('Registrado: '+ago(daysSince(d))+' en '+keyName(ui.key,s.minor)); break;
+  case 'rmhist': s=song(ui.sel); s.history=s.history.filter(function(h){return h.d!==t.dataset.d;}); save(); renderList(); renderDetail(); break;
+  case 'link': s=song(ui.sel); var sel=$('#link-sel'); if(sel&&sel.value){ var o=song(sel.value); if(s.links.indexOf(o.id)<0) s.links.push(o.id); if(o.links.indexOf(s.id)<0) o.links.push(s.id); save(); renderDetail(); } break;
+  case 'unlink': s=song(ui.sel); var o2=song(t.dataset.id); s.links=s.links.filter(function(l){return l!==t.dataset.id;}); if(o2) o2.links=o2.links.filter(function(l){return l!==s.id;}); save(); renderDetail(); break;
+  case 'parts': x=curSet(); ui.partsIdx=(ui.partsIdx===+t.dataset.i)?-1:+t.dataset.i; renderItems(); break;
+  case 'pt': x=curSet(); var pit=x.items[+t.dataset.i], pbl=blocksOf(song(pit.sid)), pn=+t.dataset.b, cur=pit.parts&&pit.parts.length?pit.parts.slice():pbl.map(function(b,q){return q;});
+    if(cur.indexOf(pn)>-1){ if(cur.length===1){ toast('Deja al menos una parte.'); break; } cur=cur.filter(function(q){return q!==pn;}); } else cur.push(pn);
+    cur.sort(function(a,b){return a-b;}); if(cur.length===pbl.length) delete pit.parts; else pit.parts=cur; save(); renderItems(); break;
+  case 'ptall': x=curSet(); delete x.items[+t.dataset.i].parts; save(); renderItems(); break;
+  case 'ptcoro': x=curSet(); var cit=x.items[+t.dataset.i], cbl=blocksOf(song(cit.sid)), cc=[]; cbl.forEach(function(b,q){ if(b.coro) cc.push(q); }); if(cc.length&&cc.length<cbl.length) cit.parts=cc; else delete cit.parts; save(); renderItems(); break;
+  case 'ptdone': ui.partsIdx=-1; renderItems(); break;
+  case 'repeat': x=curSet(); var rit=x.items[+t.dataset.i], rbl=blocksOf(song(rit.sid)), rc=[]; rbl.forEach(function(b,q){ if(b.coro) rc.push(q); });
+    var ni={sid:rit.sid,k:rit.k}; if(rc.length&&rc.length<rbl.length) ni.parts=rc; x.items.push(ni); ui.partsIdx=x.items.length-1; save(); renderSetList(); renderItems(); renderPick(); toast(ni.parts?'Agregado al final: solo el coro. Cambia las partes si quieres otra.':'Agregado al final. Elige qué partes quieres.'); break;
+  case 'plstart': plStart(); break;
+  case 'plexit': plExit(); break;
+  case 'plmenu': var pm=$('.pl-set'); if(pm) pm.hidden=!pm.hidden; plFit(); break;
+  case 'pldir': PL.dir=t.dataset.d; plSave(); plBuild(true); break;
+  case 'plcols': PL.cols=+t.dataset.n; plSave(); plBuild(true); break;
+  case 'plfs': PL.fs=Math.max(12,Math.min(64,PL.fs+(+t.dataset.d)*2)); plSave(); plBuild(true); break;
+  case 'plreset': try{ localStorage.removeItem('libro-cantos.player'); }catch(err){} plLoad(); plBuild(true); toast('Ajustes recomendados para esta pantalla'); break;
+  case 'plnext': plGo(PL.i+1); break;
+  case 'plprev': plGo(PL.i-1); break;
+  /* repertorios */
+  case 'setnew': x={id:uid(),name:'',date:today(),items:[]}; db.sets.push(x); ui.set=x.id; ui.pq=''; ui.confirm=''; save(); buildSets(); break;
+  case 'setsel': ui.partsIdx=-1; ui.set=t.dataset.id; ui.pq=''; ui.confirm=''; renderSetList(); renderSetDetail(); syncSetSplit(); $('#set-detail').scrollTop=0; break;
+  case 'setback': ui.set=null; renderSetList(); renderSetDetail(); syncSetSplit(); break;
+  case 'additem': x=curSet(); x.items.push({sid:t.dataset.id,k:+t.dataset.k}); save(); renderSetList(); renderItems(); renderPick(); break;
+  case 'rmitem': x=curSet(); ui.partsIdx=-1; x.items.splice(+t.dataset.i,1); save(); renderSetList(); renderItems(); renderPick(); break;
+  case 'up': case 'down': x=curSet(); ui.partsIdx=-1; var i=+t.dataset.i, j=a==='up'?i-1:i+1; if(j>=0&&j<x.items.length){ var tmp=x.items[i]; x.items[i]=x.items[j]; x.items[j]=tmp; save(); renderItems(); renderPick(); } break;
+  case 'openitem': x=curSet(); var it=x.items[+t.dataset.i]; pickSong(it.sid); ui.key=it.k; var sg=song(it.sid); ui.capo=(sg.capoByKey||{})[ui.key]||0; ui.tab='songs'; renderApp(); syncSplit(); break;
+  case 'setplayed': x=curSet(); if(!x.items.length){ toast('Agrega cantos al repertorio primero.'); break; } x.items.forEach(function(it){ var sg2=song(it.sid); if(!sg2) return; sg2.history=sg2.history.filter(function(h){return h.d!==x.date;}); sg2.history.push({d:x.date,k:it.k}); }); save(); renderPick(); toast('Historial actualizado con '+x.items.length+' cantos'); break;
+  case 'setdel': if(ui.confirm==='setdel'){ db.sets=db.sets.filter(function(y){return y.id!==ui.set;}); ui.set=null; ui.confirm=''; save(); buildSets(); toast('Repertorio eliminado'); } else { ui.confirm='setdel'; renderSetDetail(); } break;
+  /* respaldo */
+  case 'export': var ta=$('#b-out'); ta.value=JSON.stringify(db); ta.focus(); ta.select();
+    try{ navigator.clipboard.writeText(ta.value).then(function(){ toast('Respaldo copiado'); },function(){ toast('Selecciona el texto y cópialo a mano'); }); }catch(err){ toast('Selecciona el texto y cópialo a mano'); } break;
+  case 'imp-merge': var dm=readBackup(); if(dm){ var n=mergeBackup(dm); save(); ui.confirm=''; buildBackup(); toast(n+' cantos nuevos agregados'); } break;
+  case 'imp-replace': if(ui.confirm==='imp'){ var dr=readBackup(); if(dr){ db=dr; db.bundled=BUNDLE_V; save(); ui.sel=null; ui.set=null; ui.confirm=''; buildBackup(); toast('Respaldo cargado'); } } else if(readBackup()){ ui.confirm='imp'; var keep=$('#b-in').value; buildBackup(); $('#b-in').value=keep; } break;
+  case 'rm-ex': var ids=db.songs.filter(function(s2){return s2.example;}).map(function(s2){return s2.id;}); db.songs=db.songs.filter(function(s2){return !s2.example;}); db.songs.forEach(function(s2){s2.links=s2.links.filter(function(l){return ids.indexOf(l)<0;});}); db.sets.forEach(function(y){y.items=y.items.filter(function(i2){return ids.indexOf(i2.sid)<0;});}); if(ids.indexOf(ui.sel)>-1) ui.sel=null; save(); buildBackup(); toast('Cantos de ejemplo quitados'); break;
+  }
+});
+document.addEventListener('input',function(e){
+  var id=e.target.id;
+  if(id==='f-q'){ ui.q=e.target.value; renderList(); }
+  else if(id==='pick-q'){ ui.pq=e.target.value; renderPick(); }
+  else if(id==='set-name'){ var x=curSet(); x.name=e.target.value; save(); renderSetList(); }
+});
+document.addEventListener('change',function(e){
+  var id=e.target.id, t=e.target;
+  if(id==='f-key'){ ui.fk=t.value; renderList(); }
+  else if(id==='f-rhy'){ ui.fr=t.value; renderList(); }
+  else if(id==='f-sort'){ ui.sort=t.value; renderList(); }
+  else if(id==='f-cat'){ ui.fc=t.value; renderList(); }
+  else if(id==='f-theme'){ ui.ft=t.value; renderList(); }
+  else if(id==='imp-file'&&t.files&&t.files[0]){ var r2=new FileReader(); r2.onload=function(){ $('#imp-text').value=String(r2.result); }; r2.readAsText(t.files[0]); }
+  else if(id==='set-date'){ var x=curSet(); x.date=t.value||today(); save(); renderSetList(); }
+  else if(t.classList.contains('ksel')){ var y=curSet(); y.items[+t.dataset.i].k=+t.value; save(); renderItems(); renderPick(); }
+  else if(id==='b-file'&&t.files&&t.files[0]){ var r=new FileReader(); r.onload=function(){ $('#b-in').value=String(r.result); toast('Archivo leído. Elige cómo cargarlo.'); }; r.readAsText(t.files[0]); }
+});
+
+if(wide()&&db.songs.length){ var f1=filtered()[0]; if(f1) pickSong(f1.id); }
+$('#warn').hidden=!memOnly;
+renderApp();
+if(bundledAdded) toast('Se cargaron '+bundledAdded+' cantos en tu libro');
+try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+try{ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){}
+})();
+</script>
