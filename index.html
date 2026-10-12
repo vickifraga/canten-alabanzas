@@ -729,7 +729,7 @@ function renderDetail(){
     '<div class="sub">'+[s.artist,s.tempo?s.tempo+' bpm':'',s.rhythm].filter(Boolean).map(esc).join(' · ')+'</div>'+
     '<div class="tags">'+s.cats.map(function(c){return '<span class="tag cat">'+catLabel(c)+'</span>';}).join('')+s.themes.map(function(t){return '<span class="tag th">'+esc(t)+'</span>';}).join('')+s.tags.map(function(t){return '<span class="tag'+(t==='ejemplo'?' ex':'')+'">'+esc(t)+'</span>';}).join('')+'</div>'+
     '<div class="hint">'+(lp?'Último: <b>'+ago(daysSince(lp.d))+'</b> en '+keyName(lp.k,s.minor):'Aún no registrado como tocado.')+'</div>'+
-    '<div class="actions"><button class="btn primary" data-a="read">Modo lectura</button><button class="btn" data-a="edit">Editar</button>'+cloudBtns(s)+'</div>'+
+    '<div class="actions"><button class="btn primary" data-a="read">Modo lectura</button><button class="btn" data-a="edit">Editar</button>'+cloudBtns(s)+'<button class="btn danger'+(ui.confirm==='rmbook'?' sure':'')+'" data-a="rmbook">'+(ui.confirm==='rmbook'?'Toca otra vez para quitarlo de mi libro':'Quitar de mi libro')+'</button></div>'+(ui.confirm==='rmbook'?'<div class="hint">Solo se quita de este dispositivo. Si está en el catálogo, ahí sigue.</div>':'')+
    '</div>'+
    '<div class="card">'+
     '<div><div class="lab">Tonalidad que suena</div><div class="chips" style="margin-top:6px">'+kc+'</div><div class="hint" style="margin-top:6px">El punto marca las tonalidades en las que sueles cantarlo. Acordes escritos en '+keyName(s.orig,s.minor)+'.</div></div>'+
@@ -813,7 +813,7 @@ function deleteSong(id){
   db.songs=db.songs.filter(function(s){return s.id!==id;});
   db.songs.forEach(function(s){s.links=s.links.filter(function(l){return l!==id;});});
   db.sets.forEach(function(x){x.items=x.items.filter(function(i){return i.sid!==id;});});
-  save(); ui.sel=null; ui.edit=null; ui.confirm=''; buildSongs(); toast('Canto eliminado');
+  save(); ui.sel=null; ui.edit=null; ui.confirm=''; if(ui.tab==='songs') buildSongs(); toast('Canto eliminado');
 }
 
 /* ---------- REPERTORIOS ---------- */
@@ -1209,7 +1209,7 @@ function cOpenHTML(){
      '<pre class="mono" style="overflow:auto;max-height:46vh;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0;font-size:.875rem">'+esc(d.chart||'(sin letra)')+'</pre>'+
      '<div class="actions"><button class="btn primary" data-a="cl-add">'+(localOf(cs.id,cs.title)?'Usar esta versión en mi libro':'Agregar a mi libro')+'</button>'+
      (mineCreator&&v.id!==cs.main_version?'<button class="btn" data-a="cl-main">Hacer esta la versión principal</button>':'')+
-     '<button class="btn" data-a="cl-report">Reportar</button>'+
+     '<button class="btn" data-a="cl-report">Reportar</button>'+(localOf(cs.id,cs.title)?'<button class="btn danger'+(ui.confirm==='clrm'?' sure':'')+'" data-a="cl-rmlocal">'+(ui.confirm==='clrm'?'Toca otra vez para quitarlo de mi libro':'Quitar de mi libro')+'</button>':'')+
      (mineCreator||(C.prof&&C.prof.is_admin)?'<button class="btn danger'+(ui.confirm==='cldel'?' sure':'')+'" data-a="cl-delsong">'+(ui.confirm==='cldel'?'Toca otra vez para borrar del catálogo':'Borrar del catálogo')+'</button>':'')+'</div>'+
      (mineCreator?'':'<div class="hint">La versión principal solo la puede cambiar quien creó el canto. Si usas otros acordes, agrega el canto a tu libro, edítalo y toca "Guardar como mi versión".</div>');
   }
@@ -1398,6 +1398,7 @@ async function cloudClick(a,t){
   case 'cl-logout': cRun(async function(){ await C.sb.auth.signOut(); C.user=null; },'Saliste de tu cuenta'); break;
   case 'cl-sub': C.sub=t.dataset.s; C.open=null; C.err=''; C.sharing=null; ui.confirm=''; cRender(); break;
   case 'cl-open': C.open=t.dataset.id; C.vers=[]; C.selV=null; ui.confirm=''; cRender(); break;
+  case 'cl-rmlocal': x=localOf(C.open,(C.songs.filter(function(s){return s.id===C.open;})[0]||{}).title); if(!x) break; if(ui.confirm==='clrm'){ ui.confirm=''; deleteSong(x.id); toast('Quitado de tu libro'); cRender(); } else { ui.confirm='clrm'; cRender(); } break;
   case 'cl-back': C.open=null; ui.confirm=''; cRender(); break;
   case 'cl-ver': C.selV=t.dataset.id; cRender(); break;
   case 'cl-add': {
@@ -1495,6 +1496,7 @@ document.addEventListener('click',function(e){
   case 'edit': s=song(ui.sel); ui.edit=JSON.parse(JSON.stringify(s)); ui.confirm=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
   case 'cancel': ui.edit=null; ui.note=''; ui.confirm=''; if(!song(ui.sel)) ui.sel=null; renderDetail(); syncSplit(); break;
   case 'save': saveEditor(); break;
+  case 'rmbook': s=song(ui.sel); if(!s) break; if(ui.confirm==='rmbook') deleteSong(s.id); else { ui.confirm='rmbook'; renderDetail(); } break;
   case 'delete': if(ui.confirm==='del') deleteSong(ui.edit.id); else { ui.confirm='del'; t.textContent='Toca otra vez para eliminar'; t.classList.add('sure'); } break;
   case 'kc': case 'cc': case 'tc': t.classList.toggle('on'); t.setAttribute('aria-pressed',t.classList.contains('on')); break;
   case 'key': s=song(ui.sel); ui.key=+t.dataset.k; ui.capo=(s.capoByKey||{})[ui.key]||0; renderDetail(); break;
