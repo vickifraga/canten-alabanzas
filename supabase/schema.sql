@@ -1,7 +1,7 @@
 -- Canten Alabanzas — base de datos (Supabase / Postgres)
 -- Pega TODO este archivo en Supabase → SQL Editor → Run. Se puede correr más de una vez.
 
--- ============ INVITACIONES (solo entran correos invitados) ============
+-- ============ INVITACIONES (ya no se usan para entrar; solo marcan quién es administrador) ============
 create table if not exists public.invites (
   email text primary key,
   is_admin boolean not null default false,
@@ -25,18 +25,10 @@ create table if not exists public.profiles (
 );
 alter table public.profiles enable row level security;
 
--- Bloquea registros de correos no invitados y crea el perfil
-create or replace function public.gate_signup() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  if not exists (select 1 from public.invites where email = lower(new.email)) then
-    raise exception 'EMAIL_NOT_INVITED';
-  end if;
-  return new;
-end $$;
+-- Registro abierto: cualquier persona puede crear cuenta.
+-- (Si antes usabas invitaciones, esto quita ese bloqueo.)
 drop trigger if exists gate_signup on auth.users;
-create trigger gate_signup before insert on auth.users
-  for each row execute function public.gate_signup();
+drop function if exists public.gate_signup();
 
 create or replace function public.make_profile() returns trigger
 language plpgsql security definer set search_path = public as $$

@@ -4,7 +4,7 @@
 
 Funciona en el celular, en la tablet y en la computadora, y también sin internet.
 
-> 🚧 **Proyecto en construcción.** Se está probando con un grupo pequeño de iglesias. Por ahora es solo por invitación.
+> 🚧 **Proyecto en construcción.** Se está probando con un grupo pequeño de iglesias.
 
 ---
 
@@ -21,9 +21,9 @@ Funciona en el celular, en la tablet y en la computadora, y también sin interne
 - **Importar un canto** pegando el texto desde otra página de acordes; la app detecta el tono.
 - **Respaldo** para pasar tus datos de un dispositivo a otro.
 
-## Comunidad (por invitación)
+## Comunidad
 
-- **Cuentas:** entras con tu correo y contraseña. Por ahora solo pueden crear cuenta los correos invitados.
+- **Cuentas:** entras con tu correo y contraseña. Cualquier persona puede crear su cuenta gratis.
 - **Catálogo común:** los cantos que alguien comparte los pueden agregar todos los usuarios a su libro.
 - **Versiones:** si en tu iglesia usan un acorde distinto, guardas tu propia versión sin tocar la original. Solo quien creó el canto elige cuál es la versión principal.
 - **Equipos:** crea un equipo para tu iglesia o grupo de alabanza y compártele el código a los demás.
@@ -39,7 +39,7 @@ En iPad o iPhone, abre la página en Safari, toca el botón de compartir y elige
 
 ## Sobre los derechos de autor
 
-Las letras y los acordes de muchas canciones pertenecen a sus autores. Esta herramienta es solo un apoyo para las iglesias: **no es una tienda ni una biblioteca pública de canciones.** Los cantos no están en este repositorio: viven en una base de datos privada y solo los ven las personas invitadas. Quien sube un canto es responsable de tener permiso para usarlo, y si alguien pide que se quite un canto, se quita.
+Las letras y los acordes de muchas canciones pertenecen a sus autores. Esta herramienta es solo un apoyo para las iglesias: **no es una tienda ni una biblioteca pública de canciones.** Los cantos no están en este repositorio: viven en una base de datos privada y solo los ven las personas con cuenta. Quien sube un canto es responsable de tener permiso para usarlo, y si alguien pide que se quite un canto, se quita.
 
 ## Ayuda y comentarios
 

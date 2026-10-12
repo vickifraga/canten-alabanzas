@@ -1145,7 +1145,7 @@ function buildCloud(){
   if(C.user&&C.mode!=='recover') cLoadSub();
 }
 function cAuthHTML(){
-  var m=C.mode, h='<div class="card"><h3>Comunidad</h3><div class="hint">Comparte cantos y repertorios con otras iglesias y grupos de alabanza. Por ahora el acceso es solo por invitación.</div></div>';
+  var m=C.mode, h='<div class="card"><h3>Comunidad</h3><div class="hint">Comparte cantos y repertorios con otras iglesias y grupos de alabanza. Crea tu cuenta gratis con tu correo.</div></div>';
   var err=C.err?'<div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div>':'';
   if(m==='recover') return h+'<div class="card"><h3>Nueva contraseña</h3><label class="f">Escribe tu nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-newpw">Guardar contraseña</button></div></div>';
   if(m==='reset') return h+'<div class="card"><h3>Recuperar contraseña</h3><label class="f">Correo<input class="input" id="cl-email" type="email" autocomplete="email" value="'+esc(C.lastEmail||'')+'"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-reset">Enviar enlace</button><button class="btn" data-a="cl-mode" data-m="in">Volver</button></div></div>';
@@ -1157,7 +1157,7 @@ function cAuthHTML(){
    '<div class="actions"><button class="btn primary" data-a="'+(up?'cl-signup':'cl-login')+'"'+(C.busy?' disabled':'')+'>'+(up?'Crear cuenta':'Entrar')+'</button>'+
    '<button class="btn" data-a="cl-mode" data-m="'+(up?'in':'up')+'">'+(up?'Ya tengo cuenta':'Crear cuenta')+'</button></div>'+
    (up?'':'<div class="actions"><button class="btn" data-a="cl-mode" data-m="reset">Olvidé mi contraseña</button></div>')+
-   (up?'<div class="hint">Solo funciona con el correo al que te invitaron.</div>':'')+'</div>';
+   '</div>';
 }
 function cHomeHTML(){
   var subs=[['catalog','Catálogo'],['teams','Equipos'],['sets','Repertorios'],['acct','Cuenta']];
@@ -1172,7 +1172,7 @@ async function cLoadSub(){
     if(C.sub==='catalog'){ if(!C.songs) await cLoadSongs(); if(C.open) await cLoadOpen(); }
     else if(C.sub==='teams') await cLoadTeams();
     else if(C.sub==='sets') await cLoadSets();
-    else if(C.sub==='acct'){ if(C.prof&&C.prof.is_admin) await cLoadInvites(); }
+    
   }catch(e){ C.err=cErr(e); }
   body=$('#cl-body'); if(!body) return;
   body.innerHTML=C.sub==='catalog'?(C.open?cOpenHTML():cCatalogHTML()):C.sub==='teams'?cTeamsHTML():C.sub==='sets'?cSetsHTML():cAcctHTML();
@@ -1373,10 +1373,6 @@ function cAcctHTML(){
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
    '<div class="actions"><button class="btn primary" data-a="cl-bulk"'+(un?'':' disabled')+'>Subir mis '+un+' cantos al catálogo</button></div></div>'+
    '<div class="card"><h3>Cambiar contraseña</h3><label class="f">Nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label><div class="actions"><button class="btn" data-a="cl-newpw">Cambiar</button></div></div>';
-  if(C.prof&&C.prof.is_admin){
-    h+='<div class="card"><h3>Invitaciones</h3><div class="hint">Solo estos correos pueden crear cuenta.</div>'+(C.invites||[]).map(function(i){return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>'+esc(i.email)+(i.is_admin?' <small class="hint">(admin)</small>':'')+'</span><button class="chip" data-a="cl-invdel" data-e="'+esc(i.email)+'" aria-label="Quitar invitación de '+esc(i.email)+'">✕</button></div>';}).join('')+
-     '<label class="f">Invitar a un correo<input class="input" id="cl-inv" type="email" autocomplete="off" placeholder="nombre@correo.com"></label><div class="actions"><button class="btn primary" data-a="cl-invadd">Invitar</button></div></div>';
-  }
   return h;
 }
 /* --- acciones --- */
