@@ -493,6 +493,12 @@ function norm(d){
     cloud:(s.cloud&&s.cloud.sid)?{sid:String(s.cloud.sid),vid:String(s.cloud.vid||''),h:String(s.cloud.h||''),own:!!s.cloud.own}:null,
     history:(s.history||[]).filter(function(h){return h&&/^\d{4}-\d{2}-\d{2}$/.test(h.d);}).map(function(h){return {d:h.d,k:mod(+h.k||0)};})};});
   d.sets=(d.sets||[]).map(function(x){return {id:x.id||uid(),name:String(x.name||''),date:/^\d{4}-\d{2}-\d{2}$/.test(x.date)?x.date:today(),items:(x.items||[]).map(function(i){var o={sid:i.sid,k:mod(+i.k||0)}; if(Array.isArray(i.parts)&&i.parts.length) o.parts=i.parts.map(Number).filter(function(n){return n>=0;}); return o;})};});
+  var shifted={};
+  d.songs.forEach(function(s){ if(!s.minor) return; shifted[s.id]=1; s.minor=false; s.orig=mod(s.orig+3);
+    s.keys=s.keys.map(function(k){return mod(k+3);}).filter(function(k,i,A){return A.indexOf(k)===i;});
+    var cb={}; Object.keys(s.capoByKey||{}).forEach(function(k){ cb[mod(+k+3)]=s.capoByKey[k]; }); s.capoByKey=cb;
+    s.history=s.history.map(function(h){return {d:h.d,k:mod(h.k+3)};}); });
+  d.sets.forEach(function(x){ x.items.forEach(function(i){ if(shifted[i.sid]) i.k=mod(i.k+3); }); });
   d.bundled=+d.bundled||0; d.v=1; return d;
 }
 function load(){
@@ -766,7 +772,7 @@ function readHTML(s){
 }
 function editorHTML(){
   var s=ui.edit, isNew=!song(s.id);
-  var orig=[0,1].map(function(m){return LBL.map(function(n,i){var v=i+(m?'m':'');return '<option value="'+v+'"'+((s.orig===i&&!!s.minor===!!m)?' selected':'')+'>'+n+(m?'m':'')+'</option>';}).join('');}).join('');
+  var orig=[0].map(function(m){return LBL.map(function(n,i){var v=i+(m?'m':'');return '<option value="'+v+'"'+((s.orig===i&&!!s.minor===!!m)?' selected':'')+'>'+n+(m?'m':'')+'</option>';}).join('');}).join('');
   var rhy=['Balada 4/4','Medio 4/4','Rápido 4/4','Vals 3/4','6/8','12/8'];
   return '<button class="btn sm back" data-a="cancel" style="margin-bottom:12px">← Cancelar</button>'+
    '<div class="head"><h2>'+(isNew?'Nuevo canto':'Editar canto')+'</h2></div>'+
@@ -780,7 +786,7 @@ function editorHTML(){
      '<label class="f" style="margin-top:8px">Otros temas, separados por coma<input class="input" id="e-themes-x" value="'+esc((s.themes||[]).filter(function(t){return THEMES.indexOf(t)<0;}).join(', '))+'" placeholder="Ej.: Bautismo, Misiones"></label></div>'+
     '<div class="grid2"><label class="f">Tempo (bpm)<input class="input" id="e-tempo" type="number" inputmode="numeric" min="30" max="240" value="'+esc(s.tempo)+'"></label>'+
      '<label class="f">Ritmo o compás<input class="input" id="e-rhythm" list="rhy" value="'+esc(s.rhythm)+'"><datalist id="rhy">'+rhy.map(function(r){return '<option value="'+r+'">';}).join('')+'</datalist></label></div>'+
-    '<label class="f">Tonalidad en que están escritos los acordes<select class="select" id="e-orig">'+orig+'</select></label>'+
+    '<label class="f">Tonalidad en que están escritos los acordes (si es menor, elige su tono mayor equivalente: Do#m → Mi)<select class="select" id="e-orig">'+orig+'</select></label>'+
     '<div><div class="lab">Tonalidades en las que puedo cantarlo</div><div class="chips" id="e-keys" style="margin-top:6px">'+LBL.map(function(n,i){return '<button type="button" class="chip'+(s.keys.indexOf(i)>-1?' on':'')+'" data-a="kc" data-k="'+i+'" aria-pressed="'+(s.keys.indexOf(i)>-1)+'">'+n+'</button>';}).join('')+'</div></div>'+
     '<label class="f">Letra con acordes<textarea class="textarea mono" id="e-chart" rows="14" spellcheck="false" placeholder="Pega la letra con los acordes arriba de cada línea, o con los acordes entre corchetes, por ejemplo: Tú [G]eres mi [C]roca">'+esc(s.chart)+'</textarea></label>'+
     '<div class="hint" style="margin-top:-8px">Para marcar secciones escribe una línea como [Coro] o Verso 1.</div>'+
@@ -1217,7 +1223,7 @@ function cOpenHTML(){
    '<div class="hint">Subido por '+esc(nameOf(cs.created_by))+'. Versiones:</div><div class="chips">'+C.vers.map(function(x){
      return '<button class="chip wide'+(x.id===C.selV?' on':'')+'" data-a="cl-ver" data-id="'+x.id+'" aria-pressed="'+(x.id===C.selV)+'">'+(x.id===cs.main_version?'★ ':'')+esc(x.name||'Versión')+' · '+esc(nameOf(x.author))+'</button>';}).join('')+'</div>';
   if(v){
-    h+='<div class="hint">Tono: '+esc(keyName(d.orig||0,!!d.minor))+(d.tempo?' · '+esc(d.tempo)+' bpm':'')+(d.rhythm?' · '+esc(d.rhythm):'')+'</div>'+
+    h+='<div class="hint">Tono: '+esc(keyName(d.minor?mod((d.orig||0)+3):(d.orig||0),false))+(d.tempo?' · '+esc(d.tempo)+' bpm':'')+(d.rhythm?' · '+esc(d.rhythm):'')+'</div>'+
      '<pre class="mono" style="overflow:auto;max-height:46vh;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0;font-size:.875rem">'+esc(d.chart||'(sin letra)')+'</pre>'+
      (db.sets.length?'<div class="actions" style="align-items:center"><select class="select" id="cl-setsel" aria-label="Repertorio" style="width:auto;flex:1;min-width:150px">'+db.sets.slice().sort(function(p,q){return p.date<q.date?1:-1;}).map(function(x){return '<option value="'+x.id+'">'+esc(setTitle(x))+' · '+esc(x.date)+'</option>';}).join('')+'</select><button class="btn primary" data-a="cl-addset">Agregar a repertorio</button></div>':'<div class="hint">Crea un repertorio en la pestaña Repertorios para poder agregarle cantos desde aquí.</div>')+
      '<div class="actions"><button class="btn primary" data-a="cl-add">'+(localOf(cs.id,cs.title)?'Usar esta versión en mi libro':'Agregar a mi libro')+'</button>'+
@@ -1279,7 +1285,9 @@ async function cBulk(){
     try{ var r=await cPublish(todo[i]); if(r==='new') n++; else nv++; }catch(e){ if(/fetch|network/i.test(String(e.message))) throw e; }
     if(i%10===9) save();
   }
-  save(); toast(n+' cantos nuevos y '+nv+' versiones en el catálogo');
+  var upd=db.songs.filter(function(s){return s.cloud&&s.cloud.own&&hash(payload(s))!==s.cloud.h;}), nu=0;
+  for(var j=0;j<upd.length;j++){ C.prog='Actualizando '+(j+1)+' de '+upd.length+'…'; cRender(); try{ await cSaveVersion(upd[j]); nu++; }catch(e){ if(/fetch|network/i.test(String(e.message))) throw e; } }
+  save(); toast(n+' cantos nuevos, '+nv+' versiones y '+nu+' actualizados en el catálogo');
 }
 /* --- equipos --- */
 async function cLoadTeams(){
@@ -1377,14 +1385,14 @@ async function cCopySet(id){
 /* --- cuenta --- */
 async function cLoadInvites(){ C.invites=ck(await C.sb.from('invites').select('email,is_admin').order('email')).data||[]; }
 function cAcctHTML(){
-  var un=db.songs.filter(function(s){return !s.cloud&&!s.example&&s.chart&&s.chart.trim();}).length;
+  var un=db.songs.filter(function(s){return (!s.cloud&&!s.example&&s.chart&&s.chart.trim())||(s.cloud&&s.cloud.own&&hash(payload(s))!==s.cloud.h);}).length;
   var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
    '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
    '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+
    '<div class="card"><h3>Mis cantos y la comunidad</h3>'+
    '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
-   '<div class="actions"><button class="btn primary" data-a="cl-bulk"'+(un?'':' disabled')+'>Subir mis '+un+' cantos al catálogo</button></div></div>'+
+   '<div class="actions"><button class="btn primary" data-a="cl-bulk"'+(un?'':' disabled')+'>Subir o actualizar mis '+un+' cantos en el catálogo</button></div></div>'+
    '<div class="card"><h3>Cambiar contraseña</h3><label class="f">Nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label><div class="actions"><button class="btn" data-a="cl-newpw">Cambiar</button></div></div>';
   return h;
 }
@@ -1508,7 +1516,7 @@ document.addEventListener('click',function(e){
   case 'impstart': ui.imp=true; ui.edit=null; ui.note=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
   case 'impcancel': ui.imp=false; renderDetail(); syncSplit(); break;
   case 'impgo': var itx=$('#imp-text').value; if(!itx.trim()){ toast('Pega primero el canto.'); break; }
-    var pi=parseImport(itx); ui.edit={id:uid(),title:pi.title,artist:pi.artist,orig:pi.k,minor:pi.minor,keys:[pi.k],tempo:'',rhythm:'',tags:[],themes:[],cats:[],notes:'',chart:pi.chart,links:[],history:[],capoByKey:{}}; ui.note=pi.note; ui.imp=false; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
+    var pi=parseImport(itx); var pk=pi.minor?mod(pi.k+3):pi.k; if(pi.minor) pi.note=(pi.note||'')+' Como el canto está en '+keyName(pi.k,true)+', lo guardé en su tono mayor equivalente: '+keyName(pk,false)+'.'; ui.edit={id:uid(),title:pi.title,artist:pi.artist,orig:pk,minor:false,keys:[pk],tempo:'',rhythm:'',tags:[],themes:[],cats:[],notes:'',chart:pi.chart,links:[],history:[],capoByKey:{}}; ui.note=pi.note; ui.imp=false; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
   case 'read': ui.read=true; $('#app').classList.add('reading'); setWake(true,true); renderDetail(); window.scrollTo(0,0); break;
   case 'unread': ui.read=false; $('#app').classList.remove('reading'); setWake(false); renderDetail(); break;
   case 'kshift': s=song(ui.sel); ui.key=mod(ui.key+(+t.dataset.d)); ui.capo=(s.capoByKey||{})[ui.key]||0; renderDetail(); break;
