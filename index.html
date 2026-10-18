@@ -213,6 +213,8 @@ body.pl-open{overflow:hidden}
 .pl-h b{font-family:var(--font-display);font-size:1.375rem;line-height:1.15}
 .pl-h .pl-n{font-family:var(--font-mono);font-size:.8125rem;color:var(--muted);font-weight:600}
 .pl-h .pl-m{font-size:.9375rem;color:var(--muted)}
+.cols .grp{break-inside:avoid;margin-bottom:18px}
+.grp-t{font-family:var(--font-display);font-weight:700;font-size:1.05em;margin:2px 0 6px;color:var(--accent)}
 .player .chart.nc{font-family:inherit;font-weight:600;line-height:1.4;overflow-x:hidden}
 .player .chart.nc .ly{white-space:normal}
 .player .chart{border:0;background:transparent;padding:4px 2px;margin:0;overflow-x:auto;overflow-y:visible}
@@ -853,6 +855,7 @@ function renderSetDetail(){
    '<div class="card"><div class="grid2"><label class="f">Nombre<input class="input" id="set-name" value="'+esc(x.name)+'" placeholder="Domingo por la mañana"></label>'+
    '<label class="f">Fecha<input class="input" type="date" id="set-date" value="'+x.date+'"></label></div></div>'+
    '<div class="startbar"><button class="btn primary" data-a="plstart">▶ Empezar</button><button class="btn" data-a="plstart" data-nc="1" style="min-height:52px">▶ Solo letra (sin acordes)</button><span class="hint" style="align-self:center">Todos los cantos juntos, deslizando de uno a otro.</span></div>'+
+   '<div class="startbar" style="margin-top:-4px"><button class="btn" data-a="setimg">⬇ Descargar como imágenes</button><button class="btn" data-a="setimg" data-nc="1">⬇ Imágenes solo letra</button><span class="hint" style="align-self:center;flex-basis:100%">Para compartirlo o tenerlo sin internet: una imagen por canto (los coritos seguidos van juntos).</span></div>'+
    '<div class="items" id="set-items"></div>'+
    '<div class="card"><h3>Agregar canto</h3><input class="input" id="pick-q" type="search" placeholder="Buscar por título, tema, etiqueta o ritmo" value="'+esc(ui.pq)+'" autocomplete="off"><div class="chips" id="pick-cats" style="margin-top:2px"></div><div id="pick-results" class="pick-results"></div></div>'+
    '<div class="actions"><button class="btn primary" data-a="setplayed">Marcar como tocados</button><button class="btn danger'+(ui.confirm==='setdel'?' sure':'')+'" data-a="setdel">'+(ui.confirm==='setdel'?'Toca otra vez para eliminar':'Eliminar repertorio')+'</button></div>';
@@ -980,13 +983,89 @@ function renderPick(){
   }
   el.innerHTML=html;
   var pc=$('#pick-cats');
-  if(pc) pc.innerHTML=[['','Todas'],['calmada','Calmadas'],['movida','Movidas']].map(function(c){return '<button class="chip wide'+(ui.pcat===c[0]?' on':'')+'" data-a="pcat" data-c="'+c[0]+'" aria-pressed="'+(ui.pcat===c[0])+'">'+c[1]+'</button>';}).join('')+
+  if(pc) pc.innerHTML=[['','Todas'],['calmada','Calmadas'],['movida','Movidas'],['corito','Coritos']].map(function(c){return '<button class="chip wide'+(ui.pcat===c[0]?' on':'')+'" data-a="pcat" data-c="'+c[0]+'" aria-pressed="'+(ui.pcat===c[0])+'">'+c[1]+'</button>';}).join('')+
     '<select class="select" id="pick-key" aria-label="Tono" style="width:auto;min-height:40px"><option value="">Tono: cualquiera</option>'+LBL.map(function(n,i){return '<option value="'+i+'"'+(String(ui.pkey)===String(i)?' selected':'')+'>Tono '+n+'</option>';}).join('')+'</select>';
 }
 
 
+/* ---------- DESCARGAR REPERTORIO COMO IMÁGENES ---------- */
+function imgLines(g,nc,withTitle){
+  var s=song(g.sid), capo=(s.capoByKey||{})[g.k]||0, semis=mod(g.k-s.orig-capo), flats=useFlats(mod(g.k-capo),s.minor);
+  var ch=partsChart(s,g.parts); if(nc) ch=lyricsOnly(ch);
+  var L=[]; if(withTitle) L.push({t:'sub',x:s.title+(nc?'':'  ·  '+keyName(g.k,s.minor)+(capo?' · capo '+capo:''))});
+  ch.replace(/\r/g,'').split('\n').forEach(function(raw){
+    if(isSection(raw)) L.push({t:'sec',x:cleanSection(raw)});
+    else if(/\[[A-G][^\]]*\]/.test(raw)){ var p=fromInline(raw); if(!nc&&p.c.trim()) L.push({t:'ch',x:chordLineText(p.c,semis,flats)}); if(p.l.trim()) L.push({t:'ly',x:p.l}); }
+    else if(isChordLine(raw)){ if(!nc) L.push({t:'ch',x:chordLineText(raw,semis,flats)}); }
+    else if(!raw.trim()) L.push({t:'gap',x:''});
+    else L.push({t:'ly',x:raw});
+  });
+  return L;
+}
+function drawImages(title,meta,tag,L,nc){
+  var W=1080,pad=54,MAXH=2500, cv=document.createElement('canvas'), ctx=cv.getContext('2d');
+  var mono='ui-monospace,Menlo,Consolas,"Courier New",monospace', sans='-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif';
+  var f=nc?46:36, fam=nc?sans:mono, wt='600', avail=W-2*pad;
+  if(!nc){ ctx.font=wt+' '+f+'px '+fam; var mx=0; L.forEach(function(l){ if(l.t==='ch'||l.t==='ly') mx=Math.max(mx,ctx.measureText(l.x).width); }); if(mx>avail) f=Math.max(18,Math.floor(f*avail/mx)); }
+  var lh=Math.round(f*1.38), rows=[];
+  ctx.font=wt+' '+f+'px '+fam;
+  function wrap(t){ var w=t.split(/\s+/), cur='', out=[]; w.forEach(function(x){ var tt=cur?cur+' '+x:x; if(ctx.measureText(tt).width>avail&&cur){ out.push(cur); cur=x; } else cur=tt; }); if(cur) out.push(cur); return out; }
+  L.forEach(function(l){
+    if(l.t==='gap') rows.push({t:'gap',h:Math.round(lh*0.55)});
+    else if(l.t==='sec') rows.push({t:'sec',x:l.x,h:Math.round(f*1.55),pre:Math.round(f*0.35)});
+    else if(l.t==='sub') rows.push({t:'sub',x:l.x,h:Math.round(f*1.8),pre:Math.round(f*0.7)});
+    else if(nc) wrap(l.x).forEach(function(z){ rows.push({t:'ly',x:z,h:lh}); });
+    else rows.push({t:l.t,x:l.x,h:lh});
+  });
+  var head=meta?175:135, pages=[], cur=[], y=head;
+  rows.forEach(function(r){ var h=(r.pre||0)+r.h; if(y+h>MAXH&&cur.length){ pages.push(cur); cur=[]; y=head; } cur.push(r); y+=h; });
+  if(cur.length) pages.push(cur);
+  if(!pages.length) pages.push([]);
+  return pages.map(function(pg,pi){
+    var hh=head+pg.reduce(function(a,r){return a+(r.pre||0)+r.h;},0)+pad;
+    cv.width=W; cv.height=hh; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,hh); ctx.textBaseline='alphabetic'; ctx.textAlign='left';
+    ctx.fillStyle='#111'; ctx.font='700 50px '+sans; var tt=title+(pages.length>1?' ('+(pi+1)+'/'+pages.length+')':''); ctx.fillText(tt,pad,pad+44,avail-90);
+    ctx.fillStyle='#6b7280'; ctx.font='500 28px '+sans; if(meta) ctx.fillText(meta,pad,pad+92,avail); ctx.textAlign='right'; ctx.fillText(tag,W-pad,pad+44); ctx.textAlign='left';
+    ctx.strokeStyle='#d1d5db'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(pad,head-16); ctx.lineTo(W-pad,head-16); ctx.stroke();
+    var yy=head;
+    pg.forEach(function(r){ yy+=(r.pre||0);
+      if(r.t==='ch'){ ctx.font='700 '+f+'px '+fam; ctx.fillStyle='#0D6663'; ctx.fillText(r.x,pad,yy+f); }
+      else if(r.t==='ly'){ ctx.font=wt+' '+f+'px '+fam; ctx.fillStyle='#111'; ctx.fillText(r.x,pad,yy+f); }
+      else if(r.t==='sec'){ ctx.font='700 '+Math.round(f*0.72)+'px '+sans; ctx.fillStyle='#6b7280'; ctx.fillText(r.x.toUpperCase(),pad,yy+Math.round(f*0.9)); }
+      else if(r.t==='sub'){ ctx.font='700 '+Math.round(f*1.1)+'px '+sans; ctx.fillStyle='#0D6663'; ctx.fillText(r.x,pad,yy+Math.round(f*1.2)); }
+      yy+=r.h; });
+    return cv.toDataURL('image/png');
+  });
+}
+function dataToFile(d,name){ var b=atob(d.split(',')[1]), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return new File([u],name,{type:'image/png'}); }
+function deliverFiles(files,title){
+  function dl(){ files.forEach(function(f,i){ setTimeout(function(){ var a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },3000); },i*450); }); toast(files.length+' imágenes descargadas'); }
+  try{ if(navigator.canShare&&navigator.canShare({files:files})){ navigator.share({files:files,title:title}).catch(function(e){ if(!(e&&e.name==='AbortError')) dl(); }); return; } }catch(e){}
+  dl();
+}
+function setImagesGo(nc){
+  var x=curSet(); if(!x) return;
+  var list=x.items.filter(function(it){return song(it.sid);}); if(!list.length){ toast('Agrega cantos al repertorio primero.'); return; }
+  var items=groupCoritos(list), files=[], safe=function(t){ return t.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'canto'; };
+  items.forEach(function(it,i){
+    var title,meta='',L=[];
+    if(it.group){ title='Cadena de coritos'; it.group.forEach(function(g,j){ if(j) L.push({t:'gap',x:''}); L=L.concat(imgLines(g,nc,true)); }); }
+    else { var s=song(it.sid), capo=(s.capoByKey||{})[it.k]||0; title=s.title; if(!nc) meta='Suena en '+keyName(it.k,s.minor)+(capo?' · capo '+capo+' · formas de '+shapeName(mod(it.k-capo),s.minor):' · sin capo'); L=imgLines(it,nc,false); }
+    drawImages(title,meta,(i+1)+'/'+items.length,L,nc).forEach(function(d,pi,arr){ files.push(dataToFile(d,('0'+(i+1)).slice(-2)+'-'+safe(title)+(arr.length>1?'-'+(pi+1):'')+'.png')); });
+  });
+  deliverFiles(files,setTitle(x));
+}
+
 /* ---------- EMPEZAR: todos los cantos del repertorio, deslizando ---------- */
 var PL={on:false,nc:false,fsn:34,dir:'l',cols:0,fs:22,i:0,items:[]};
+function isCorito(it){ var s=song(it.sid); return !!s&&(s.cats.indexOf('corito')>-1||s.cats.indexOf('chanting')>-1); }
+function groupCoritos(list){
+  var out=[],cur=[];
+  function flush(){ if(cur.length>1) out.push({sid:cur[0].sid,k:cur[0].k,group:cur.slice()}); else if(cur.length) out.push(cur[0]); cur=[]; }
+  list.forEach(function(it){ if(isCorito(it)) cur.push(it); else { flush(); out.push(it); } });
+  flush(); return out;
+}
+function plTitle(it){ return it.group?'Cadena de coritos ('+it.group.length+')':song(it.sid).title; }
 function plF(){ return PL.nc?PL.fsn:PL.fs; }
 function lyricsOnly(ch){
   var L=String(ch||'').replace(/\r/g,'').split('\n').map(function(l){ if(isSection(l)) return l; if(isChordLine(l)) return null; if(/\[[A-G][^\]]*\]/.test(l)) return fromInline(l).l; return l; }).filter(function(l){return l!==null;});
@@ -1004,7 +1083,7 @@ function plLoad(){
 function plSave(){ try{ localStorage.setItem('libro-cantos.player',JSON.stringify({dir:PL.dir,cols:PL.cols,fs:PL.fs,fsn:PL.fsn})); }catch(e){} }
 function plStart(nc){
   var x=curSet(); if(!x) return;
-  PL.items=x.items.filter(function(it){return song(it.sid);});
+  PL.raw=x.items.filter(function(it){return song(it.sid);}); PL.join=true; PL.items=groupCoritos(PL.raw);
   if(!PL.items.length){ toast('Agrega cantos al repertorio primero.'); return; }
   plLoad(); PL.nc=!!nc; PL.on=true; PL.i=0; ui.partsIdx=-1;
   document.body.classList.add('pl-open'); setWake(true,true);
@@ -1013,7 +1092,17 @@ function plStart(nc){
 function plExit(){
   PL.on=false; var p=$('#player'); if(p) p.remove(); document.body.classList.remove('pl-open'); setWake(false);
 }
+function plGroupPage(it,idx){
+  var N=PL.items.length, max=0, nx=PL.items[idx+1];
+  var parts=it.group.map(function(g){ var s2=song(g.sid), capo2=(s2.capoByKey||{})[g.k]||0, ch2=partsChart(s2,g.parts); if(PL.nc) ch2=lyricsOnly(ch2);
+    var r2=renderChart({orig:s2.orig,minor:s2.minor,chart:ch2},g.k,capo2); if(r2.len>max) max=r2.len;
+    return '<div class="grp"><div class="grp-t">'+esc(s2.title)+(PL.nc?'':' · '+keyName(g.k,s2.minor)+(capo2?' · capo '+capo2:''))+'</div>'+r2.html+'</div>'; });
+  return '<section class="pl-page" data-i="'+idx+'" aria-label="Cadena de coritos"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>Cadena de coritos</b><span class="pl-m">'+it.group.map(function(g){return esc(song(g.sid).title);}).join(' → ')+'</span></div>'+
+    '<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+max+'"><div class="cols">'+parts.join('')+'</div></div>'+
+    (nx?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
+}
 function plPage(it,idx){
+  if(it.group) return plGroupPage(it,idx);
   var s=song(it.sid), capo=(s.capoByKey||{})[it.k]||0, shape=mod(it.k-capo), N=PL.items.length;
   var meta=PL.nc?'':'Suena en '+keyName(it.k,s.minor)+(capo?' · capo '+capo+' · formas de '+shapeName(shape,s.minor):' · sin capo');
   var only=partsLabel(s,it.parts), body;
@@ -1022,7 +1111,7 @@ function plPage(it,idx){
   else { var r=renderChart({orig:s.orig,minor:s.minor,chart:ch},it.k,capo); body='<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+r.len+'"><div class="cols">'+r.html+'</div></div>'; }
   var nx=PL.items[idx+1], nxs=nx&&song(nx.sid);
   return '<section class="pl-page" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?(meta?' · ':'')+'Solo: '+esc(only):'')+'</span></div>'+body+
-    (nxs?'<div class="pl-next">Sigue: <b>'+esc(nxs.title)+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
+    (nxs?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
 }
 function plBuild(keep){
   var old=$('#player'); if(old) old.remove();
@@ -1035,6 +1124,7 @@ function plBuild(keep){
     '<div class="row"><span class="lab">Deslizar</span>'+D.map(function(d){return '<button class="chip wide'+(PL.dir===d[0]?' on':'')+'" data-a="pldir" data-d="'+d[0]+'" aria-pressed="'+(PL.dir===d[0])+'">'+d[1]+'</button>';}).join('')+'</div>'+
     '<div class="row"><span class="lab">Columnas</span>'+C.map(function(c){return '<button class="chip wide'+(PL.cols===c[0]?' on':'')+'" data-a="plcols" data-n="'+c[0]+'" aria-pressed="'+(PL.cols===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>'+
     '<div class="row"><span class="lab">Tamaño de letra</span><button class="btn sm" data-a="plfs" data-d="-1" aria-label="Letra más pequeña">A−</button><b style="min-width:2.4em;text-align:center">'+plF()+'</b><button class="btn sm" data-a="plfs" data-d="1" aria-label="Letra más grande">A+</button></div>'+
+    '<div class="row"><span class="lab">Coritos</span><button class="chip wide'+(PL.join?' on':'')+'" data-a="pljoin" data-j="1" aria-pressed="'+PL.join+'">Juntos en cadena</button><button class="chip wide'+(PL.join?'':' on')+'" data-a="pljoin" data-j="0" aria-pressed="'+(!PL.join)+'">Uno por página</button></div>'+
     '<div class="row"><span class="lab">Acordes</span><button class="chip wide'+(PL.nc?'':' on')+'" data-a="plnc" aria-pressed="'+(!PL.nc)+'">Con acordes</button><button class="chip wide'+(PL.nc?' on':'')+'" data-a="plnc" aria-pressed="'+PL.nc+'">Solo letra</button></div>'+
     '<div class="row"><button class="btn sm" data-a="plreset">Volver a lo recomendado para esta pantalla</button></div>'+
    '</div>'+
@@ -1083,9 +1173,9 @@ function plIndexNow(){
 function plSync(){ var i=plIndexNow(); if(i!==PL.i){ PL.i=i; } plUpdate(); }
 function plUpdate(){
   var pos=$('#pl-pos'), nx=$('#pl-nx'); if(!pos) return;
-  var s=song(PL.items[PL.i].sid), n=PL.items[PL.i+1], ns=n&&song(n.sid);
-  pos.textContent=(PL.i+1)+' de '+PL.items.length+' · '+s.title;
-  nx.textContent=ns?'Sigue: '+ns.title:'Último canto';
+  var n=PL.items[PL.i+1];
+  pos.textContent=(PL.i+1)+' de '+PL.items.length+' · '+plTitle(PL.items[PL.i]);
+  nx.textContent=n?'Sigue: '+plTitle(n):'Último canto';
   var bn=$('#pl-bn'), bp=$('#pl-bp'); if(bn) bn.disabled=PL.i>=PL.items.length-1; if(bp) bp.disabled=PL.i<=0;
 }
 function plGo(i,instant){
@@ -1659,11 +1749,13 @@ document.addEventListener('click',function(e){
     var ni={sid:rit.sid,k:rit.k}; if(rc.length&&rc.length<rbl.length) ni.parts=rc; x.items.push(ni); ui.partsIdx=x.items.length-1; save(); renderSetList(); renderItems(); renderPick(); toast(ni.parts?'Agregado al final: solo el coro. Cambia las partes si quieres otra.':'Agregado al final. Elige qué partes quieres.'); break;
   case 'pcat': ui.pcat=t.dataset.c; renderPick(); break;
   case 'plstart': plStart(!!t.dataset.nc); break;
+  case 'setimg': setImagesGo(!!t.dataset.nc); break;
   case 'plexit': plExit(); break;
   case 'plmenu': var pm=$('.pl-set'); if(pm) pm.hidden=!pm.hidden; plFit(); break;
   case 'pldir': PL.dir=t.dataset.d; plSave(); plBuild(true); break;
   case 'plcols': PL.cols=+t.dataset.n; plSave(); plBuild(true); break;
   case 'plfs': if(PL.nc) PL.fsn=Math.max(14,Math.min(72,PL.fsn+(+t.dataset.d)*2)); else PL.fs=Math.max(12,Math.min(64,PL.fs+(+t.dataset.d)*2)); plSave(); plBuild(true); break;
+  case 'pljoin': PL.join=t.dataset.j==='1'; PL.items=PL.join?groupCoritos(PL.raw):PL.raw.slice(); PL.i=0; plBuild(true); break;
   case 'plnc': PL.nc=!PL.nc; plBuild(true); break;
   case 'plreset': try{ localStorage.removeItem('libro-cantos.player'); }catch(err){} plLoad(); plBuild(true); toast('Ajustes recomendados para esta pantalla'); break;
   case 'plnext': plGo(PL.i+1); break;
