@@ -314,3 +314,19 @@ revoke all on all tables in schema public from anon;
 -- ============ TU CORREO COMO ADMINISTRADORA ============
 -- Cambia el correo por el tuyo y corre SOLO esta línea (una vez):
 -- insert into public.invites(email, is_admin) values ('tucorreo@gmail.com', true) on conflict (email) do update set is_admin = true;
+
+-- ============ SINCRONIZACIÓN ENTRE DISPOSITIVOS (repertorios e historial) ============
+create table if not exists public.user_sync (
+  user_id uuid not null default auth.uid() references public.profiles(id) on delete cascade,
+  kind text not null,
+  item_id text not null,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, kind, item_id)
+);
+alter table public.user_sync enable row level security;
+drop policy if exists us_all on public.user_sync;
+create policy us_all on public.user_sync for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+grant select, insert, update, delete on public.user_sync to authenticated;
+revoke all on public.user_sync from anon;

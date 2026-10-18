@@ -628,7 +628,7 @@ function applyBundle(){
   db.bundled=BUNDLE_V; save();
 }
 applyBundle();
-function save(){ try{ localStorage.setItem(SK,JSON.stringify(db)); memOnly=false; }catch(e){ memOnly=true; } $('#warn').hidden=!memOnly; }
+function save(){ try{ localStorage.setItem(SK,JSON.stringify(db)); memOnly=false; }catch(e){ memOnly=true; } $('#warn').hidden=!memOnly; try{ if(typeof SYON!=='undefined'&&SYON){ syTouch(); sySchedule(); } }catch(e){} }
 function song(id){return db.songs.filter(function(s){return s.id===id;})[0];}
 function lastPlayed(s){ if(!s.history.length) return null; return s.history.slice().sort(function(a,b){return a.d<b.d?1:-1;})[0]; }
 function sinceLast(s){var l=lastPlayed(s);return l?daysSince(l.d):null;}
@@ -1141,7 +1141,7 @@ function cInit(){
     function go(){ try{
       C.sb=window.supabase.createClient(CLOUD.url,CLOUD.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'libro-cantos.auth'}});
       C.sb.auth.onAuthStateChange(function(ev,sess){ setTimeout(function(){
-        C.user=sess?sess.user:null;
+        C.user=sess?sess.user:null; if(C.user&&ev==='SIGNED_IN') cSync().catch(function(){});
         if(ev==='PASSWORD_RECOVERY'){ C.mode='recover'; }
         else if(C.user&&C.mode!=='recover') C.mode='in';
         if(!C.user){ C.prof=null; C.songs=null; C.teams=null; C.sets=null; C.invites=null; C.open=null; }
@@ -1157,7 +1157,7 @@ async function cStart(){
   try{
     await cInit();
     var g=await C.sb.auth.getSession(); C.user=(g.data&&g.data.session)?g.data.session.user:null;
-    if(C.user) await cProfile();
+    if(C.user){ await cProfile(); cSync().catch(function(){}); }
     C.ready=true; C.err='';
   }catch(e){ C.err=cErr(e); }
   cRender();
@@ -1413,6 +1413,79 @@ async function cCopySet(id){
   db.sets.push({id:uid(),name:(r.title||'Servicio'),date:today(),items:items}); save();
   toast('Repertorio copiado a tu libro'+(miss?' ('+miss+' cantos no se pudieron abrir)':''));
 }
+
+/* --- sincronización entre dispositivos (repertorios + historial) --- */
+var SYON=true, SY={sets:{},hist:{},last:0}, syTimer=null;
+try{ var _sy=JSON.parse(localStorage.getItem('libro-cantos.sync')||'{}'); SY.sets=_sy.sets||{}; SY.hist=_sy.hist||{}; SY.last=_sy.last||0; }catch(e){}
+function syStore(){ try{ localStorage.setItem('libro-cantos.sync',JSON.stringify(SY)); }catch(e){} }
+function setRep(x){ return {id:x.id,name:x.name,date:x.date,items:x.items.map(function(i){ var s=song(i.sid), o={s:i.sid,c:s&&s.cloud?s.cloud.sid:null,t:s?s.title:'',k:i.k}; if(i.parts&&i.parts.length) o.p=i.parts; return o; })}; }
+function histKey(s){ return s.cloud?s.cloud.sid:'t:'+normT(s.title); }
+function syTouch(){
+  var m=SY.sets, now=Date.now();
+  db.sets.forEach(function(x){ var h=hash(setRep(x)), e=m[x.id]; if(!e) m[x.id]={h:h,u:now,ph:''}; else if(e.h!==h||e.del){ e.h=h; e.u=now; delete e.del; if(e.ph==='x') e.ph=''; } });
+  Object.keys(m).forEach(function(id){ if(!m[id].del&&!db.sets.some(function(x){return x.id===id;})){ m[id].del=true; m[id].u=now; m[id].ph=''; } });
+  db.songs.forEach(function(s){ if(!s.history.length) return; var k=histKey(s), h=hash(s.history), e=SY.hist[k]; if(!e) SY.hist[k]={h:h,ph:''}; else e.h=h; });
+  syStore();
+}
+function sySchedule(){ if(C.syncing) return; clearTimeout(syTimer); if(C.user&&C.sb) syTimer=setTimeout(function(){ cSync().catch(function(){}); },4000); }
+function syFind(i){
+  var s=song(i.s); if(s&&(!i.c||!s.cloud||s.cloud.sid===i.c)) return s;
+  if(i.c){ s=db.songs.filter(function(z){return z.cloud&&z.cloud.sid===i.c;})[0]; if(s) return s; }
+  return db.songs.filter(function(z){return !z.cloud&&normT(z.title)===normT(i.t);})[0];
+}
+async function syEnsure(reps){
+  var miss={};
+  reps.forEach(function(r){ r.items.forEach(function(i){ if(i.c&&!syFind(i)) miss[i.c]=i.t; }); });
+  var ids=Object.keys(miss); if(!ids.length) return;
+  if(!C.songs) await cLoadSongs();
+  var cs=C.songs.filter(function(s){return miss[s.id]&&s.main_version;});
+  for(var n=0;n<cs.length;n+=40){
+    var ch=cs.slice(n,n+40);
+    var vs=ck(await C.sb.from('song_versions').select('id,song_id,author,name,data').in('id',ch.map(function(m){return m.main_version;}))).data||[];
+    vs.forEach(function(v){ var c=ch.filter(function(m){return m.id===v.song_id;})[0]; if(c&&!db.songs.some(function(z){return z.cloud&&z.cloud.sid===c.id;})) db.songs.push(songFromCloud(c,v)); });
+  }
+}
+async function cSync(){
+  if(!C.user||!C.sb||C.syncing) return; C.syncing=true; var changed=0;
+  try{
+    syTouch();
+    var rows=ck(await C.sb.from('user_sync').select('kind,item_id,data')).data||[], rs={}, rh={};
+    rows.forEach(function(r){ if(r.kind==='set') rs[r.item_id]=r.data; else if(r.kind==='hist') rh[r.item_id]=r.data; });
+    var ap=[];
+    Object.keys(rs).forEach(function(id){
+      var d=rs[id]||{}, e=SY.sets[id], loc=db.sets.filter(function(x){return x.id===id;})[0], ru=d.u||0;
+      if(d.del){ if(loc&&(!e||ru>=e.u)) ap.push({id:id,del:true,u:ru}); else if(!loc&&!e) SY.sets[id]={h:'',u:ru,ph:'x',del:true}; return; }
+      if(!d.rep) return;
+      if(!loc){ if(e&&e.del&&e.u>ru) return; ap.push({id:id,rep:d.rep,u:ru}); return; }
+      if(!e||ru>e.u) ap.push({id:id,rep:d.rep,u:ru});
+    });
+    await syEnsure(ap.filter(function(z){return z.rep;}).map(function(z){return z.rep;}));
+    ap.forEach(function(z){
+      if(z.del){ db.sets=db.sets.filter(function(x){return x.id!==z.id;}); SY.sets[z.id]={h:'',u:z.u,ph:'x',del:true}; changed++; return; }
+      var items=[]; z.rep.items.forEach(function(i){ var s=syFind(i); if(s){ var o={sid:s.id,k:i.k}; if(i.p) o.parts=i.p; items.push(o); } });
+      var loc=db.sets.filter(function(x){return x.id===z.id;})[0];
+      if(loc){ if(JSON.stringify(loc.items)!==JSON.stringify(items)||loc.name!==z.rep.name||loc.date!==z.rep.date){ loc.name=z.rep.name; loc.date=z.rep.date; loc.items=items; changed++; } }
+      else { db.sets.push({id:z.id,name:z.rep.name,date:z.rep.date,items:items}); changed++; }
+      var cur=db.sets.filter(function(x){return x.id===z.id;})[0], h=hash(setRep(cur)); SY.sets[z.id]={h:h,u:z.u,ph:h};
+    });
+    Object.keys(rh).forEach(function(k){
+      var s=db.songs.filter(function(z){return histKey(z)===k;})[0]; if(!s) return;
+      var add=0; ((rh[k]||{}).h||[]).forEach(function(y){ if(y&&/^\d{4}-\d{2}-\d{2}$/.test(y.d)&&!s.history.some(function(q){return q.d===y.d;})){ s.history.push({d:y.d,k:mod(+y.k||0)}); add++; } });
+      if(add) changed++;
+    });
+    db.songs.forEach(function(s){ if(s.history.length){ var k=histKey(s), h=hash(s.history); SY.hist[k]=SY.hist[k]||{h:'',ph:''}; SY.hist[k].h=h; } });
+    var up=[];
+    db.sets.forEach(function(x){ var e=SY.sets[x.id]; if(e&&e.h!==e.ph){ var ru=(rs[x.id]&&rs[x.id].u)||0; if(e.u>=ru){ up.push({user_id:C.user.id,kind:'set',item_id:x.id,data:{rep:setRep(x),u:e.u}}); e.ph=e.h; } } });
+    Object.keys(SY.sets).forEach(function(id){ var e=SY.sets[id]; if(e.del&&e.ph!=='x'){ up.push({user_id:C.user.id,kind:'set',item_id:id,data:{del:true,u:e.u}}); e.ph='x'; } });
+    db.songs.forEach(function(s){ if(!s.history.length) return; var k=histKey(s), e=SY.hist[k]; if(e&&e.h!==e.ph){ up.push({user_id:C.user.id,kind:'hist',item_id:k,data:{h:s.history}}); e.ph=e.h; } });
+    for(var i=0;i<up.length;i+=100) ck(await C.sb.from('user_sync').upsert(up.slice(i,i+100),{onConflict:'user_id,kind,item_id'}));
+    if(changed) save();
+    SY.last=Date.now(); syStore();
+    if(changed){ toast('Se actualizaron tus repertorios desde otro dispositivo'); var ae=document.activeElement; if(!PL.on&&!ui.edit&&!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) renderApp(); }
+  } finally { C.syncing=false; }
+}
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&C.user) cSync().catch(function(){}); });
+window.addEventListener('online',function(){ if(C.user) cSync().catch(function(){}); });
 /* --- cuenta --- */
 async function cLoadInvites(){ C.invites=ck(await C.sb.from('invites').select('email,is_admin').order('email')).data||[]; }
 function cAcctHTML(){
@@ -1420,6 +1493,7 @@ function cAcctHTML(){
   var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
    '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
    '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+
+   '<div class="card"><h3>Sincronización entre mis dispositivos</h3><div class="hint">Tus repertorios y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
    '<div class="card"><h3>Mis cantos y la comunidad</h3>'+
    '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
@@ -1459,6 +1533,7 @@ async function cloudClick(a,t){
       var v3=vr.filter(function(y){return y.id===cs3.main_version;})[0]||vr[0]; if(!v3) throw new Error('Ese canto no tiene versiones.');
       var n3=songFromCloud(cs3,v3); db.songs.push(n3); st3.items.push({sid:n3.id,k:singKeys(n3)[0]}); save();
       renderSetList(); renderItems(); renderPick(); },'Agregado al repertorio y a tu libro'); break;
+  case 'cl-sync': cRun(cSync,'Sincronizado'); break;
   case 'cl-importall': cRun(cImportAll); break;
   case 'cl-back': C.open=null; ui.confirm=''; cRender(); break;
   case 'cl-ver': C.selV=t.dataset.id; cRender(); break;
