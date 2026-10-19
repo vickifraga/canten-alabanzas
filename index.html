@@ -957,6 +957,7 @@ function chantSuggest(x){
     return {s:s,k:b.k,d:b.d,sc:sc,days:d};
   }).sort(function(a,b){return b.sc-a.sc;}).slice(0,6);
 }
+function clearPick(){ ui.pq=''; var q=$('#pick-q'); if(q){ q.value=''; } renderPick(); if(q){ try{ q.focus({preventScroll:true}); }catch(e){} } }
 function renderPick(){
   var x=curSet(), el=$('#pick-results'); if(!x||!el) return;
   var q=ui.pq.trim().toLowerCase(), used=x.items.map(function(i){return i.sid;}), html='';
@@ -1624,7 +1625,7 @@ async function cloudClick(a,t){
       var vr=ck(await C.sb.from('song_versions').select('id,song_id,author,name,data').eq('song_id',cs3.id).order('created_at')).data||[];
       var v3=vr.filter(function(y){return y.id===cs3.main_version;})[0]||vr[0]; if(!v3) throw new Error('Ese canto no tiene versiones.');
       var n3=songFromCloud(cs3,v3); db.songs.push(n3); st3.items.push({sid:n3.id,k:singKeys(n3)[0]}); save();
-      renderSetList(); renderItems(); renderPick(); },'Agregado al repertorio y a tu libro'); break;
+      renderSetList(); renderItems(); clearPick(); },'Agregado al repertorio y a tu libro'); break;
   case 'cl-sync': cRun(cSync,'Sincronizado'); break;
   case 'cl-importall': cRun(cImportAll); break;
   case 'cl-back': C.open=null; ui.confirm=''; cRender(); break;
@@ -1772,7 +1773,7 @@ document.addEventListener('click',function(e){
   case 'setnew': x={id:uid(),name:'',date:today(),items:[]}; db.sets.push(x); ui.set=x.id; ui.pq=''; ui.confirm=''; save(); buildSets(); break;
   case 'setsel': ui.partsIdx=-1; ui.set=t.dataset.id; ui.pq=''; ui.confirm=''; renderSetList(); renderSetDetail(); syncSetSplit(); $('#set-detail').scrollTop=0; break;
   case 'setback': ui.set=null; renderSetList(); renderSetDetail(); syncSetSplit(); break;
-  case 'additem': x=curSet(); x.items.push({sid:t.dataset.id,k:+t.dataset.k}); save(); renderSetList(); renderItems(); renderPick(); break;
+  case 'additem': x=curSet(); x.items.push({sid:t.dataset.id,k:+t.dataset.k}); save(); renderSetList(); renderItems(); clearPick(); break;
   case 'rmitem': x=curSet(); ui.partsIdx=-1; x.items.splice(+t.dataset.i,1); save(); renderSetList(); renderItems(); renderPick(); break;
   case 'up': case 'down': x=curSet(); ui.partsIdx=-1; var i=+t.dataset.i, j=a==='up'?i-1:i+1; if(j>=0&&j<x.items.length){ var tmp=x.items[i]; x.items[i]=x.items[j]; x.items[j]=tmp; save(); renderItems(); renderPick(); } break;
   case 'openitem': x=curSet(); var it=x.items[+t.dataset.i]; pickSong(it.sid); ui.key=it.k; var sg=song(it.sid); ui.capo=(sg.capoByKey||{})[ui.key]||0; ui.tab='songs'; renderApp(); syncSplit(); break;
