@@ -231,8 +231,7 @@ body.pl-open{overflow:hidden}
   <nav class="tabs" aria-label="Secciones">
     <button class="tab" data-a="tab" data-tab="songs"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span>Cantos</span></button>
     <button class="tab" data-a="tab" data-tab="sets"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>Repertorios</span></button>
-    <button class="tab" data-a="tab" data-tab="cloud"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.8 3 2.6 3 5"/></svg><span>Comunidad</span></button>
-    <button class="tab" data-a="tab" data-tab="backup"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4"/><path d="M5 19h14"/></svg><span>Respaldo</span></button>
+    <button class="tab" data-a="tab" data-tab="cloud"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.8 3 2.6 3 5"/></svg><span>Perfil</span></button>
   </nav>
 </div>
 
@@ -509,7 +508,7 @@ function norm(d){
 }
 function load(){
   try{ var t=localStorage.getItem(SK); if(t){ var d=JSON.parse(t); if(d && Array.isArray(d.songs)) return norm(d); } }catch(e){ memOnly=true; }
-  var s=seed(); try{ localStorage.setItem(SK,JSON.stringify(s)); }catch(e){ memOnly=true; } return s;
+  var s=norm(seed()); try{ localStorage.setItem(SK,JSON.stringify(s)); }catch(e){ memOnly=true; } return s;
 }
 var BUNDLE_V=9, BUNDLED=[];
 var BUNDLED2=[];
@@ -625,7 +624,7 @@ function applyBundle(){
     if(n8.length){ db.songs=db.songs.concat(norm({songs:n8}).songs); bundledAdded+=n8.length; }
   }
   if((db.bundled||0)<9){
-    db.songs.forEach(function(x){ if(!x.themes.length && THEMEMAP[x.id]) x.themes=THEMEMAP[x.id].slice(); });
+    db.songs.forEach(function(x){ if((!x.themes||!x.themes.length) && THEMEMAP[x.id]) x.themes=THEMEMAP[x.id].slice(); });
   }
   db.bundled=BUNDLE_V; save();
 }
@@ -655,6 +654,7 @@ function buildSongs(){
    '<div class="split" id="split">'+
     '<section class="pane list-pane" aria-label="Lista de cantos">'+
      '<div class="toolbar">'+
+      '<button class="btn" data-a="cl-cat" style="width:100%">📚 Catálogo común: cantos de todos</button>'+
       '<input class="input" id="f-q" type="search" placeholder="Buscar canto, autor, tema o etiqueta" value="'+esc(ui.q)+'" autocomplete="off">'+
       '<div class="row2">'+
        '<select class="select" id="f-key" aria-label="Filtrar por tonalidad"><option value="">Toda tonalidad</option>'+LBL.map(function(n,i){return '<option value="'+i+'"'+(ui.fk===String(i)?' selected':'')+'>'+n+'</option>';}).join('')+'</select>'+
@@ -835,7 +835,7 @@ function setTitle(x){return x.name||'Servicio';}
 function buildSets(){
   $('#main').innerHTML=
    '<div class="split" id="split">'+
-    '<section class="pane list-pane" aria-label="Repertorios"><div class="toolbar"><button class="btn primary" data-a="setnew">+ Nuevo repertorio</button></div><div class="list" id="set-list"></div></section>'+
+    '<section class="pane list-pane" aria-label="Repertorios"><div class="toolbar"><button class="btn primary" data-a="setnew">+ Nuevo repertorio</button><button class="btn" data-a="cl-shared">👥 Compartidos con mi equipo</button></div><div class="list" id="set-list"></div></section>'+
     '<section class="pane detail-pane" id="set-detail"></section></div>';
   renderSetList(); renderSetDetail(); syncSetSplit();
 }
@@ -855,7 +855,7 @@ function renderSetDetail(){
    '<div class="card"><div class="grid2"><label class="f">Nombre<input class="input" id="set-name" value="'+esc(x.name)+'" placeholder="Domingo por la mañana"></label>'+
    '<label class="f">Fecha<input class="input" type="date" id="set-date" value="'+x.date+'"></label></div></div>'+
    '<div class="startbar"><button class="btn primary" data-a="plstart">▶ Empezar</button><button class="btn" data-a="plstart" data-nc="1" style="min-height:52px">▶ Solo letra (sin acordes)</button><span class="hint" style="align-self:center">Todos los cantos juntos, deslizando de uno a otro.</span></div>'+
-   '<div class="startbar" style="margin-top:-4px"><button class="btn" data-a="setimg">⬇ Descargar como imágenes</button><button class="btn" data-a="setimg" data-nc="1">⬇ Imágenes solo letra</button><span class="hint" style="align-self:center;flex-basis:100%">Para compartirlo o tenerlo sin internet: una imagen por canto (los coritos seguidos van juntos).</span></div>'+
+   '<div class="startbar" style="margin-top:-4px"><button class="btn" data-a="setimg">⬇ Descargar como imágenes</button><button class="btn" data-a="setimg" data-nc="1">⬇ Imágenes solo letra</button><button class="btn" data-a="cl-shareset" data-id="'+x.id+'">👥 Compartir con mi equipo</button><span class="hint" style="align-self:center;flex-basis:100%">Para compartirlo o tenerlo sin internet: una imagen por canto (los coritos seguidos van juntos).</span></div>'+
    '<div class="items" id="set-items"></div>'+
    '<div class="card"><h3>Agregar canto</h3><input class="input" id="pick-q" type="search" placeholder="Buscar por título, tema, etiqueta o ritmo" value="'+esc(ui.pq)+'" autocomplete="off"><div class="chips" id="pick-cats" style="margin-top:2px"></div><div id="pick-results" class="pick-results"></div></div>'+
    '<div class="actions"><button class="btn primary" data-a="setplayed">Marcar como tocados</button><button class="btn danger'+(ui.confirm==='setdel'?' sure':'')+'" data-a="setdel">'+(ui.confirm==='setdel'?'Toca otra vez para eliminar':'Eliminar repertorio')+'</button></div>';
@@ -1265,14 +1265,15 @@ function cRender(){ if(ui.tab==='cloud') buildCloud(); }
 function buildCloud(){
   if(!C.ready && !C.err){ $('#main').innerHTML='<div class="page"><div class="card"><div class="hint">Conectando…</div></div></div>'; cStart(); return; }
   var h='<div class="page" id="cl">';
-  if(C.err&&!C.user&&!C.ready) h+='<div class="card"><h3>Comunidad</h3><div class="hint">'+esc(C.err)+'</div><div class="hint">Tu libro sigue funcionando sin internet. Para usar la comunidad necesitas conexión.</div><div class="actions"><button class="btn" data-a="cl-retry">Reintentar</button></div></div>';
+  if(C.err&&!C.user&&!C.ready) h+='<div class="card"><h3>Perfil</h3><div class="hint">'+esc(C.err)+'</div><div class="hint">Tu libro sigue funcionando sin internet. Para entrar a tu cuenta necesitas conexión.</div><div class="actions"><button class="btn" data-a="cl-retry">Reintentar</button></div></div>';
   else if(!C.user) h+=cAuthHTML();
   else h+=cHomeHTML();
-  $('#main').innerHTML=h+'</div>';
+  if(!C.user||C.sub==='acct') h+=backupHTML();
+  $('#main').innerHTML=h+'</div>'; fillBackup();
   if(C.user&&C.mode!=='recover') cLoadSub();
 }
 function cAuthHTML(){
-  var m=C.mode, h='<div class="card"><h3>Comunidad</h3><div class="hint">Comparte cantos y repertorios con otras iglesias y grupos de alabanza. Crea tu cuenta gratis con tu correo.</div></div>';
+  var m=C.mode, h='<div class="card"><h3>Tu cuenta</h3><div class="hint">Con una cuenta gratis: tus repertorios aparecen en todos tus dispositivos, usas el catálogo común de cantos y compartes repertorios con tu equipo.</div></div>';
   var err=C.err?'<div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div>':'';
   if(m==='recover') return h+'<div class="card"><h3>Nueva contraseña</h3><label class="f">Escribe tu nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-newpw">Guardar contraseña</button></div></div>';
   if(m==='reset') return h+'<div class="card"><h3>Recuperar contraseña</h3><label class="f">Correo<input class="input" id="cl-email" type="email" autocomplete="email" value="'+esc(C.lastEmail||'')+'"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-reset">Enviar enlace</button><button class="btn" data-a="cl-mode" data-m="in">Volver</button></div></div>';
@@ -1287,8 +1288,9 @@ function cAuthHTML(){
    '</div>';
 }
 function cHomeHTML(){
-  var subs=[['catalog','Catálogo'],['teams','Equipos'],['sets','Repertorios'],['acct','Cuenta']];
-  var h='<div class="chips" role="tablist" style="margin-bottom:12px">'+subs.map(function(s){return '<button class="chip wide'+(C.sub===s[0]?' on':'')+'" data-a="cl-sub" data-s="'+s[0]+'" aria-pressed="'+(C.sub===s[0])+'">'+s[1]+'</button>';}).join('')+'</div>';
+  var h='';
+  if(C.sub==='catalog'&&!C.open) h='<div class="actions" style="margin-bottom:10px"><button class="btn" data-a="cl-go" data-tab="songs">← Mi libro de cantos</button></div>';
+  else if(C.sub==='sets') h='<div class="actions" style="margin-bottom:10px"><button class="btn" data-a="cl-go" data-tab="sets">← Mis repertorios</button></div>';
   if(C.err) h+='<div class="card"><div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div></div>';
   if(C.prog) h+='<div class="card"><div class="hint">'+esc(C.prog)+'</div></div>';
   return h+'<div id="cl-body"></div>';
@@ -1297,12 +1299,12 @@ async function cLoadSub(){
   var body=$('#cl-body'); if(!body) return;
   try{
     if(C.sub==='catalog'){ if(!C.songs) await cLoadSongs(); if(C.open) await cLoadOpen(); }
-    else if(C.sub==='teams') await cLoadTeams();
     else if(C.sub==='sets') await cLoadSets();
+    else await cLoadTeams();
     
   }catch(e){ C.err=cErr(e); }
   body=$('#cl-body'); if(!body) return;
-  body.innerHTML=C.sub==='catalog'?(C.open?cOpenHTML():cCatalogHTML()):C.sub==='teams'?cTeamsHTML():C.sub==='sets'?cSetsHTML():cAcctHTML();
+  body.innerHTML=C.sub==='catalog'?(C.open?cOpenHTML():cCatalogHTML()):C.sub==='sets'?cSetsHTML():cAcctHTML();
 }
 /* --- catálogo --- */
 async function cLoadSongs(){ var r=ck(await C.sb.from('songs').select('id,title,artist,created_by,main_version').order('title').limit(3000)); C.songs=r.data||[]; }
@@ -1323,7 +1325,7 @@ function cCatalogHTML(){
   var nmiss=(C.songs||[]).filter(function(s){return s.main_version&&!localOf(s.id,s.title);}).length;
   var h='<div class="card"><h3>Catálogo común</h3><div class="hint">'+(C.songs||[]).length+' cantos compartidos por todos los usuarios. Elige uno para ver sus versiones y agregarlo a tu libro.</div>'+
    '<input class="input" id="cl-q" type="search" placeholder="Buscar por título o autor" value="'+esc(C.q)+'" autocomplete="off" aria-label="Buscar en el catálogo">'+(nmiss?'<div class="actions"><button class="btn primary" data-a="cl-importall">Importar los '+nmiss+' cantos que me faltan</button></div><div class="hint">Los agrega a tu libro de una vez, en su versión principal.</div>':'')+'</div>';
-  if(!list.length) return h+'<div class="card"><div class="hint">'+((C.songs||[]).length?'No hay resultados.':'Todavía no hay cantos. Comparte el primero desde la pestaña Cantos o en Cuenta → "Subir mis cantos".')+'</div></div>';
+  if(!list.length) return h+'<div class="card"><div class="hint">'+((C.songs||[]).length?'No hay resultados.':'Todavía no hay cantos. Sube los tuyos desde Perfil → "Subir o actualizar mis cantos".')+'</div></div>';
   h+='<div class="card" style="gap:0;padding:4px 0">'+list.slice(0,150).map(function(s){
     var mine=localOf(s.id,s.title);
     return '<button class="btn" style="justify-content:space-between;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;min-height:52px;width:100%" data-a="cl-open" data-id="'+s.id+'"><span><b>'+esc(s.title)+'</b>'+(s.artist?'<br><small class="hint">'+esc(s.artist)+'</small>':'')+'</span>'+(mine?'<small class="hint">✓ en tu libro</small>':'')+'</button>';}).join('')+
@@ -1421,7 +1423,7 @@ async function cLoadTeams(){
   C.teams=ts.map(function(t){ t.members=all.filter(function(x){return x.team_id===t.id;}); return t; });
 }
 function cTeamsHTML(){
-  var h='<div class="card"><h3>Mis equipos</h3><div class="hint">Un equipo es tu iglesia o tu grupo de alabanza. Los repertorios que compartas con el equipo los ven todos sus miembros.</div>';
+  var h='<div class="card"><h3>Mi equipo</h3><div class="hint">Un equipo es tu iglesia o tu grupo de alabanza. Los repertorios que compartas con el equipo los ven todos sus miembros. Los cantos del catálogo común los ve todo el mundo.</div>';
   (C.teams||[]).forEach(function(t){
     var own=t.owner===C.user.id;
     h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(t.name)+'</b>'+(own?' <small class="hint">(tú lo creaste)</small>':'')+
@@ -1445,7 +1447,7 @@ async function cLoadSets(){
 }
 function teamName(id){ var t=(C.teams||[]).filter(function(x){return x.id===id;})[0]; return t?t.name:''; }
 function cSetsHTML(){
-  var h='<div class="card"><h3>Compartir uno de mis repertorios</h3>';
+  var h='<div class="card"><h3>Compartir un repertorio con mi equipo</h3><div class="hint">'+((C.teams||[]).length?'Elige el repertorio y luego el equipo (o correos). Solo ellos lo verán.':'Primero crea o únete a un equipo en Perfil.')+'</div>';
   if(!db.sets.length) h+='<div class="hint">Aún no tienes repertorios. Crea uno en la pestaña Repertorios.</div>';
   db.sets.slice().sort(function(a,b){return a.date<b.date?1:-1;}).slice(0,30).forEach(function(x){
     var sid=cShares()[x.id];
@@ -1458,7 +1460,7 @@ function cSetsHTML(){
        '<div class="actions"><button class="btn primary" data-a="cl-share-go">Compartir</button><button class="btn" data-a="cl-share-x">Cancelar</button></div></div>';
     }
   });
-  h+='</div><div class="card"><h3>Repertorios compartidos</h3>';
+  h+='</div><div class="card"><h3>Repertorios compartidos conmigo y con mi equipo</h3>';
   var rows=C.sets||[];
   if(!rows.length) h+='<div class="hint">Todavía no hay repertorios compartidos.</div>';
   rows.forEach(function(r){
@@ -1582,9 +1584,9 @@ function cAcctHTML(){
   var un=db.songs.filter(function(s){return (!s.cloud&&!s.example&&s.chart&&s.chart.trim())||(s.cloud&&s.cloud.own&&hash(payload(s))!==s.cloud.h);}).length;
   var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
    '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
-   '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+
-   '<div class="card"><h3>Sincronización entre mis dispositivos</h3><div class="hint">Tus repertorios y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
-   '<div class="card"><h3>Mis cantos y la comunidad</h3>'+
+   '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+cTeamsHTML()+
+   '<div class="card"><h3>Sincronizar mis dispositivos</h3><div class="hint">Tus repertorios y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
+   '<div class="card"><h3>Mis cantos en el catálogo común</h3>'+
    '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
    '<div class="actions"><button class="btn primary" data-a="cl-bulk"'+(un?'':' disabled')+'>Subir o actualizar mis '+un+' cantos en el catálogo</button></div></div>'+
@@ -1644,6 +1646,10 @@ async function cloudClick(a,t){
   case 'cl-leave': cRun(async function(){ ck(await C.sb.from('team_members').delete().eq('team_id',t.dataset.t).eq('user_id',C.user.id)); C.teams=null; },'Saliste del equipo'); break;
   case 'cl-kick': cRun(async function(){ ck(await C.sb.from('team_members').delete().eq('team_id',t.dataset.t).eq('user_id',t.dataset.u)); C.teams=null; },'Miembro quitado'); break;
   case 'cl-teamdel': if(ui.confirm==='tdel'+t.dataset.t){ ui.confirm=''; cRun(async function(){ ck(await C.sb.from('teams').delete().eq('id',t.dataset.t)); C.teams=null; C.sets=null; },'Equipo eliminado'); } else { ui.confirm='tdel'+t.dataset.t; cRender(); } break;
+  case 'cl-cat': ui.tab='cloud'; C.sub='catalog'; C.open=null; C.err=''; renderApp(); break;
+  case 'cl-shared': ui.tab='cloud'; C.sub='sets'; C.open=null; C.err=''; C.sharing=null; C.sets=null; renderApp(); break;
+  case 'cl-go': ui.tab=t.dataset.tab; C.open=null; C.sharing=null; C.err=''; renderApp(); break;
+  case 'cl-shareset': ui.tab='cloud'; C.sub='sets'; C.open=null; C.err=''; C.sharing={setId:t.dataset.id}; C.sets=null; renderApp(); break;
   case 'cl-share': C.sharing={setId:t.dataset.id}; if(!C.teams) { cRun(cLoadTeams); } else cRender(); break;
   case 'cl-share-x': C.sharing=null; cRender(); break;
   case 'cl-share-go': cRun(cShareGo); break;
@@ -1659,10 +1665,10 @@ document.addEventListener('change',function(e){ if(e.target.id==='cl-auto'){ C.a
 try{ if(/^https?:$/.test(location.protocol)&&(localStorage.getItem('libro-cantos.auth')||/[?&#](code|access_token|type)=/.test(location.href))) cStart(); }catch(e){}
 
 /* ---------- RESPALDO ---------- */
-function buildBackup(){
+function backupHTML(){
   var nEx=db.songs.filter(function(s){return s.example;}).length, nH=db.songs.reduce(function(a,s){return a+s.history.length;},0);
-  $('#main').innerHTML='<div class="page">'+
-   '<div class="card"><h3>Tu información</h3><div class="stat"><div><b>'+db.songs.length+'</b><small>cantos</small></div><div><b>'+db.sets.length+'</b><small>repertorios</small></div><div><b>'+nH+'</b><small>veces registradas</small></div></div>'+
+  return '<div class="backup">'+
+   '<div class="card"><h3>Respaldo de este dispositivo</h3><div class="stat"><div><b>'+db.songs.length+'</b><small>cantos</small></div><div><b>'+db.sets.length+'</b><small>repertorios</small></div><div><b>'+nH+'</b><small>veces registradas</small></div></div>'+
    '<div class="hint">Todo se guarda en este dispositivo y navegador. Copia un respaldo de vez en cuando y pásalo a tu otro dispositivo para tener los mismos cantos.</div></div>'+
    '<div class="card"><h3>Sacar respaldo</h3><div class="actions"><button class="btn primary" data-a="export">Copiar respaldo</button></div>'+
    '<textarea class="textarea mono" id="b-out" readonly rows="5" aria-label="Texto del respaldo"></textarea><div class="hint">Pega ese texto en un mensaje o nota a ti mismo. En el otro dispositivo lo pegas aquí abajo.</div></div>'+
@@ -1672,8 +1678,9 @@ function buildBackup(){
    '<div class="hint">Combinar agrega los cantos y repertorios nuevos y suma el historial. Reemplazar borra lo que hay en este dispositivo.</div></div>'+
    (nEx?'<div class="card"><h3>Cantos de ejemplo</h3><div class="hint">Hay '+nEx+' cantos de muestra para probar la app.</div><div class="actions"><button class="btn" data-a="rm-ex">Quitar cantos de ejemplo</button></div></div>':'')+
    '</div>';
-  $('#b-out').value=JSON.stringify(db);
 }
+function fillBackup(){ var o=$('#b-out'); if(o) o.value=JSON.stringify(db); }
+function buildBackup(){ var k=$('#b-in')?$('#b-in').value:''; buildCloud(); if(k&&$('#b-in')) $('#b-in').value=k; }
 function readBackup(){
   var t=$('#b-in').value.trim(); if(!t){ toast('Pega primero el texto del respaldo.'); return null; }
   try{ var d=JSON.parse(t); if(!d||!Array.isArray(d.songs)) throw 0; return norm(d); }catch(e){ toast('Ese texto no es un respaldo válido.'); return null; }
@@ -1686,11 +1693,12 @@ function mergeBackup(d){
 }
 
 /* ---------- pantalla ---------- */
+function navTab(){ if(ui.tab!=='cloud') return ui.tab; return C.sub==='catalog'?'songs':C.sub==='sets'?'sets':'cloud'; }
 function renderApp(){
-  [].forEach.call(document.querySelectorAll('.tab'),function(b){ b.setAttribute('aria-current',b.dataset.tab===ui.tab?'page':'false'); });
+  var nt=navTab(); [].forEach.call(document.querySelectorAll('.tab'),function(b){ b.setAttribute('aria-current',b.dataset.tab===nt?'page':'false'); });
   if(ui.tab!=='songs') ui.read=false;
   $('#app').classList.toggle('reading',ui.read);
-  if(ui.tab==='songs') buildSongs(); else if(ui.tab==='sets') buildSets(); else if(ui.tab==='cloud') buildCloud(); else buildBackup();
+  if(ui.tab==='songs') buildSongs(); else if(ui.tab==='sets') buildSets(); else buildCloud();
 }
 var rz; window.addEventListener('resize',function(){ clearTimeout(rz); rz=setTimeout(function(){ if(ui.tab==='songs'&&!ui.edit&&!ui.imp) fitChart(); },150); });
 try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(function(){ if(ui.tab==='songs'&&!ui.edit&&!ui.imp) fitChart(); }); }catch(e){}
@@ -1710,7 +1718,7 @@ document.addEventListener('click',function(e){
   if(a==='exit-leave'){ var ex2=$('#exitask'); if(ex2) ex2.remove(); history.back(); return; }
   if(a.indexOf('cl-')===0){ cloudClick(a,t); return; }
   switch(a){
-  case 'tab': ui.tab=t.dataset.tab; ui.confirm=''; if(ui.tab==='songs'&&!ui.sel&&wide()&&db.songs.length&&!ui.edit){ var f0=filtered()[0]; if(f0) pickSong(f0.id); } renderApp(); break;
+  case 'tab': ui.tab=t.dataset.tab; ui.confirm=''; if(ui.tab==='cloud'){ C.sub='acct'; C.open=null; C.sharing=null; C.err=''; } if(ui.tab==='songs'&&!ui.sel&&wide()&&db.songs.length&&!ui.edit){ var f0=filtered()[0]; if(f0) pickSong(f0.id); } renderApp(); break;
   case 'sel': pickSong(t.dataset.id); renderList(); renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
   case 'back': ui.sel=null; renderList(); renderDetail(); syncSplit(); break;
   case 'impstart': ui.imp=true; ui.edit=null; ui.note=''; renderDetail(); syncSplit(); $('#detail').scrollTop=0; break;
