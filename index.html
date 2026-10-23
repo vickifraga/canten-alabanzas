@@ -796,6 +796,9 @@ function editorHTML(){
     '<div><div class="lab">Tonalidades en las que puedo cantarlo</div><div class="chips" id="e-keys" style="margin-top:6px">'+LBL.map(function(n,i){return '<button type="button" class="chip'+(s.keys.indexOf(i)>-1?' on':'')+'" data-a="kc" data-k="'+i+'" aria-pressed="'+(s.keys.indexOf(i)>-1)+'">'+n+'</button>';}).join('')+'</div></div>'+
     '<label class="f">Letra con acordes<textarea class="textarea mono" id="e-chart" rows="14" spellcheck="false" placeholder="Pega la letra con los acordes arriba de cada línea, o con los acordes entre corchetes, por ejemplo: Tú [G]eres mi [C]roca">'+esc(s.chart)+'</textarea></label>'+
     '<div class="hint" style="margin-top:-8px">Para marcar secciones escribe una línea como [Coro] o Verso 1.</div>'+
+    '<div class="card" style="gap:8px"><h3>Unir otro canto al final</h3><select class="select" id="merge-sel" aria-label="Canto a unir"><option value="">Elige un canto…</option>'+db.songs.filter(function(o){return o.id!==s.id;}).sort(function(x,y){return x.title.localeCompare(y.title,'es');}).map(function(o){return '<option value="'+o.id+'">'+esc(o.title)+'</option>';}).join('')+'</select>'+
+     '<div class="actions"><button type="button" class="btn" data-a="merge">Agregar con acordes</button><button type="button" class="btn" data-a="merge" data-nc="1">Agregar solo la letra</button></div>'+
+     '<div class="hint">Se pega al final de la letra de arriba, sin guardar todavía: revísalo y toca Guardar. Los acordes se pasan al tono de este canto.</div></div>'+
     '<label class="f">Notas<textarea class="textarea" id="e-notes" rows="3">'+esc(s.notes)+'</textarea></label>'+
     '<div class="actions"><button class="btn primary" data-a="save">Guardar canto</button><button class="btn" data-a="cancel">Cancelar</button>'+
     (isNew?'':'<button class="btn danger'+(ui.confirm==='del'?' sure':'')+'" data-a="delete">'+(ui.confirm==='del'?'Toca otra vez para eliminar':'Eliminar')+'</button>')+'</div>'+
@@ -990,8 +993,8 @@ function renderPick(){
 
 
 /* ---------- DESCARGAR REPERTORIO COMO IMÁGENES ---------- */
-function imgLines(g,nc,withTitle){
-  var s=song(g.sid), capo=(s.capoByKey||{})[g.k]||0, semis=mod(g.k-s.orig-capo), flats=useFlats(mod(g.k-capo),s.minor);
+function imgLines(g,nc,withTitle,nocapo,minorOverride){
+  var s=song(g.sid), capo=nocapo?0:((s.capoByKey||{})[g.k]||0), semis=mod(g.k-s.orig-capo), flats=useFlats(mod(g.k-capo),minorOverride===undefined?s.minor:minorOverride);
   var ch=partsChart(s,g.parts); if(nc) ch=lyricsOnly(ch);
   var L=[]; if(withTitle) L.push({t:'sub',x:s.title+(nc?'':'  ·  '+keyName(g.k,s.minor)+(capo?' · capo '+capo:''))});
   ch.replace(/\r/g,'').split('\n').forEach(function(raw){
@@ -1773,6 +1776,12 @@ document.addEventListener('click',function(e){
   case 'setnew': x={id:uid(),name:'',date:today(),items:[]}; db.sets.push(x); ui.set=x.id; ui.pq=''; ui.confirm=''; save(); buildSets(); break;
   case 'setsel': ui.partsIdx=-1; ui.set=t.dataset.id; ui.pq=''; ui.confirm=''; renderSetList(); renderSetDetail(); syncSetSplit(); $('#set-detail').scrollTop=0; break;
   case 'setback': ui.set=null; renderSetList(); renderSetDetail(); syncSetSplit(); break;
+  case 'merge': { var ms=song(($('#merge-sel')||{}).value); if(!ms){ toast('Elige primero el canto que quieres unir.'); break; }
+      var tk=parseInt($('#e-orig').value,10)||0, mm=/m$/.test($('#e-orig').value), nc2=!!t.dataset.nc, ta=$('#e-chart');
+      var ml=imgLines({sid:ms.id,k:tk},nc2,false,true,mm), out=['','['+ms.title+']'];
+      ml.forEach(function(l){ out.push(l.t==='sec'?'['+l.x+']':l.x); });
+      ta.value=ta.value.replace(/\s+$/,'')+'\n'+out.join('\n').replace(/\n{3,}/g,'\n\n')+'\n'; ta.scrollTop=ta.scrollHeight;
+      toast('"'+ms.title+'" agregado al final'+(nc2?' (solo letra)':'')+'. Revisa y toca Guardar.'); break; }
   case 'additem': x=curSet(); x.items.push({sid:t.dataset.id,k:+t.dataset.k}); save(); renderSetList(); renderItems(); clearPick(); break;
   case 'rmitem': x=curSet(); ui.partsIdx=-1; x.items.splice(+t.dataset.i,1); save(); renderSetList(); renderItems(); renderPick(); break;
   case 'up': case 'down': x=curSet(); ui.partsIdx=-1; var i=+t.dataset.i, j=a==='up'?i-1:i+1; if(j>=0&&j<x.items.length){ var tmp=x.items[i]; x.items[i]=x.items[j]; x.items[j]=tmp; save(); renderItems(); renderPick(); } break;
