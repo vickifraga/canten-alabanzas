@@ -875,6 +875,7 @@ function saveEditor(){
   save(); pickSong(s.id); ui.edit=null; ui.note=''; buildSongs(); toast('Canto guardado'); cAuto(s);
 }
 function deleteSong(id){
+  var ds=song(id); if(ds&&typeof SY!=='undefined'){ SY.songs[syKey(ds)]={h:'',u:Date.now(),ph:'x',del:true}; syStore(); }
   db.songs=db.songs.filter(function(s){return s.id!==id;});
   db.songs.forEach(function(s){s.links=s.links.filter(function(l){return l!==id;});});
   db.sets.forEach(function(x){x.items=x.items.filter(function(i){return i.sid!==id;});});
@@ -1608,16 +1609,29 @@ async function cCopySet(id){
 }
 
 /* --- sincronización entre dispositivos (repertorios + historial) --- */
-var SYON=true, SY={sets:{},hist:{},last:0}, syTimer=null;
-try{ var _sy=JSON.parse(localStorage.getItem('libro-cantos.sync')||'{}'); SY.sets=_sy.sets||{}; SY.hist=_sy.hist||{}; SY.last=_sy.last||0; }catch(e){}
+var SYON=true, SY={sets:{},hist:{},songs:{},last:0}, syTimer=null;
+try{ var _sy=JSON.parse(localStorage.getItem('libro-cantos.sync')||'{}'); SY.sets=_sy.sets||{}; SY.hist=_sy.hist||{}; SY.songs=_sy.songs||{}; SY.last=_sy.last||0; }catch(e){}
 function syStore(){ try{ localStorage.setItem('libro-cantos.sync',JSON.stringify(SY)); }catch(e){} }
 function setRep(x){ return {id:x.id,name:x.name,date:x.date,items:x.items.map(function(i){ var s=song(i.sid), o={s:i.sid,c:s&&s.cloud?s.cloud.sid:null,t:s?s.title:'',k:i.k}; if(i.parts&&i.parts.length) o.p=i.parts; return o; })}; }
+function syKey(s){ return s.cloud?'c:'+s.cloud.sid:'l:'+s.id; }
+function songRep(s){ var r={t:s.title,a:s.artist||'',p:payload(s)}; if(s.cloud) r.cm={vid:s.cloud.vid,h:s.cloud.h,own:!!s.cloud.own}; return r; }
+var SYF=['orig','minor','keys','tempo','rhythm','cats','themes','tags','notes','chart','capoByKey'];
+function syByKey(k,rep){
+  var id=k.slice(2);
+  if(k.charAt(0)==='c') return db.songs.filter(function(z){return z.cloud&&z.cloud.sid===id;})[0];
+  return db.songs.filter(function(z){return !z.cloud&&z.id===id;})[0]||db.songs.filter(function(z){return normT(z.title)===normT(rep.t);})[0];
+}
 function histKey(s){ return s.cloud?s.cloud.sid:'t:'+normT(s.title); }
 function syTouch(){
   var m=SY.sets, now=Date.now();
   db.sets.forEach(function(x){ var h=hash(setRep(x)), e=m[x.id]; if(!e) m[x.id]={h:h,u:now,ph:''}; else if(e.h!==h||e.del){ e.h=h; e.u=now; delete e.del; if(e.ph==='x') e.ph=''; } });
   Object.keys(m).forEach(function(id){ if(!m[id].del&&!db.sets.some(function(x){return x.id===id;})){ m[id].del=true; m[id].u=now; m[id].ph=''; } });
   db.songs.forEach(function(s){ if(!s.history.length) return; var k=histKey(s), h=hash(s.history), e=SY.hist[k]; if(!e) SY.hist[k]={h:h,ph:''}; else e.h=h; });
+  var ms=SY.songs;
+  db.songs.forEach(function(s){ if(s.example) return; var k=syKey(s), e=ms[k], h;
+    if(!e){ h=hash(songRep(s)); if(s.cloud&&!s.cloud.own&&hash(payload(s))===s.cloud.h) ms[k]={h:h,u:0,ph:h}; else ms[k]={h:h,u:now,ph:''}; }
+    else { h=hash(songRep(s)); if(e.h!==h){ e.h=h; e.u=now; } delete e.del; } });
+  Object.keys(ms).forEach(function(k){ if(!ms[k].del&&!db.songs.some(function(z){return syKey(z)===k;})) ms[k].del=true; });
   syStore();
 }
 function sySchedule(){ if(C.syncing) return; clearTimeout(syTimer); if(C.user&&C.sb) syTimer=setTimeout(function(){ cSync().catch(function(){}); },4000); }
@@ -1642,8 +1656,8 @@ async function cSync(){
   if(!C.user||!C.sb||C.syncing) return; C.syncing=true; var changed=0;
   try{
     syTouch();
-    var rows=ck(await C.sb.from('user_sync').select('kind,item_id,data')).data||[], rs={}, rh={};
-    rows.forEach(function(r){ if(r.kind==='set') rs[r.item_id]=r.data; else if(r.kind==='hist') rh[r.item_id]=r.data; });
+    var rows=ck(await C.sb.from('user_sync').select('kind,item_id,data')).data||[], rs={}, rh={}, rsg={};
+    rows.forEach(function(r){ if(r.kind==='set') rs[r.item_id]=r.data; else if(r.kind==='hist') rh[r.item_id]=r.data; else if(r.kind==='song') rsg[r.item_id]=r.data; });
     var ap=[];
     Object.keys(rs).forEach(function(id){
       var d=rs[id]||{}, e=SY.sets[id], loc=db.sets.filter(function(x){return x.id===id;})[0], ru=d.u||0;
@@ -1661,6 +1675,17 @@ async function cSync(){
       else { db.sets.push({id:z.id,name:z.rep.name,date:z.rep.date,items:items}); changed++; }
       var cur=db.sets.filter(function(x){return x.id===z.id;})[0], h=hash(setRep(cur)); SY.sets[z.id]={h:h,u:z.u,ph:h};
     });
+    Object.keys(rsg).forEach(function(k){
+      var d=rsg[k]||{}, e=SY.songs[k], ru=d.u||0, rp=d.rep; if(!rp||!rp.p||(e&&e.del)) return;
+      var s=syByKey(k,rp);
+      if(!s){ if(k.charAt(0)==='c'&&!rp.cm) return; s=norm({songs:[{id:k.charAt(0)==='l'?k.slice(2):uid(),title:rp.t,artist:rp.a||'',orig:rp.p.orig,minor:rp.p.minor,keys:rp.p.keys}]}).songs[0]; if(k.charAt(0)==='c'&&rp.cm) s.cloud={sid:k.slice(2),vid:rp.cm.vid,h:rp.cm.h,own:!!rp.cm.own}; db.songs.push(s); }
+      else if(e&&ru<=e.u&&e.ph!=='') return;
+      var before=hash(songRep(s));
+      s.title=rp.t||s.title; s.artist=rp.a||'';
+      SYF.forEach(function(f){ if(rp.p[f]!==undefined) s[f]=rp.p[f]; });
+      var h=hash(songRep(s)); if(h!==before) changed++;
+      SY.songs[syKey(s)]={h:h,u:ru,ph:h};
+    });
     Object.keys(rh).forEach(function(k){
       var s=db.songs.filter(function(z){return histKey(z)===k;})[0]; if(!s) return;
       var add=0; ((rh[k]||{}).h||[]).forEach(function(y){ if(y&&/^\d{4}-\d{2}-\d{2}$/.test(y.d)&&!s.history.some(function(q){return q.d===y.d;})){ s.history.push({d:y.d,k:mod(+y.k||0)}); add++; } });
@@ -1671,14 +1696,18 @@ async function cSync(){
     db.sets.forEach(function(x){ var e=SY.sets[x.id]; if(e&&e.h!==e.ph){ var ru=(rs[x.id]&&rs[x.id].u)||0; if(e.u>=ru){ up.push({user_id:C.user.id,kind:'set',item_id:x.id,data:{rep:setRep(x),u:e.u}}); e.ph=e.h; } } });
     Object.keys(SY.sets).forEach(function(id){ var e=SY.sets[id]; if(e.del&&e.ph!=='x'){ up.push({user_id:C.user.id,kind:'set',item_id:id,data:{del:true,u:e.u}}); e.ph='x'; } });
     db.songs.forEach(function(s){ if(!s.history.length) return; var k=histKey(s), e=SY.hist[k]; if(e&&e.h!==e.ph){ up.push({user_id:C.user.id,kind:'hist',item_id:k,data:{h:s.history}}); e.ph=e.h; } });
+    db.songs.forEach(function(s){ var k=syKey(s), e=SY.songs[k]; if(e&&!e.del&&e.h!==e.ph){ var ru=(rsg[k]&&rsg[k].u)||0; if(e.u>=ru){ up.push({user_id:C.user.id,kind:'song',item_id:k,data:{rep:songRep(s),u:e.u}}); e.ph=e.h; } } });
+    Object.keys(SY.songs).forEach(function(k){ var e=SY.songs[k]; if(e.del&&e.ph&&e.ph!=='x'){ up.push({user_id:C.user.id,kind:'song',item_id:k,data:{del:true,u:e.u||Date.now()}}); e.ph='x'; } });
     for(var i=0;i<up.length;i+=100) ck(await C.sb.from('user_sync').upsert(up.slice(i,i+100),{onConflict:'user_id,kind,item_id'}));
     if(changed) save();
     SY.last=Date.now(); syStore();
-    if(changed){ toast('Se actualizaron tus playlists desde otro dispositivo'); var ae=document.activeElement; if(!PL.on&&!ui.edit&&!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) renderApp(); }
+    if(changed){ toast('Se actualizó tu libro desde otro dispositivo'); var ae=document.activeElement; if(!PL.on&&!ui.edit&&!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) renderApp(); }
   } finally { C.syncing=false; }
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&C.user) cSync().catch(function(){}); });
 window.addEventListener('online',function(){ if(C.user) cSync().catch(function(){}); });
+setInterval(function(){ if(C.user&&document.visibilityState==='visible'&&!PL.on) cSync().catch(function(){}); },60000);
+try{ syTouch(); }catch(e){}
 /* --- cuenta --- */
 async function cLoadInvites(){ C.invites=ck(await C.sb.from('invites').select('email,is_admin').order('email')).data||[]; }
 function cAcctHTML(){
@@ -1686,7 +1715,7 @@ function cAcctHTML(){
   var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
    '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
    '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+cTeamsHTML()+
-   '<div class="card"><h3>Sincronizar mis dispositivos</h3><div class="hint">Tus playlists y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
+   '<div class="card"><h3>Sincronizar mis dispositivos</h3><div class="hint">Tus playlists, los cambios que hagas a tus cantos y tu historial de cantos tocados se guardan en tu cuenta y aparecen solos en todos tus dispositivos. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
    '<div class="card"><h3>Mis cantos en el catálogo común</h3>'+
    '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
