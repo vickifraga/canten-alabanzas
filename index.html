@@ -223,6 +223,9 @@ body.pl-open{overflow:hidden}
 .pl-nav{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:.92;z-index:3}
 .pl-nav:disabled{opacity:.3}
 .pl-page.last{padding-bottom:84px}
+.fbox{display:grid;gap:8px}
+.fbox[hidden]{display:none}
+#f-tg.on{border-color:var(--accent);color:var(--accent)}
 .pl-add{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;min-height:52px;padding:0 22px;border-radius:26px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .pl-add[hidden]{display:none}
 .player[data-dir="v"] .pl-add{display:none}
@@ -646,7 +649,7 @@ function sinceLast(s){var l=lastPlayed(s);return l?daysSince(l.d):null;}
 function singKeys(s){return s.keys.length?s.keys:[s.orig];}
 
 /* ---------- estado de pantalla ---------- */
-var ui={pcat:'',pkey:'',tab:'songs',sel:null,edit:null,q:'',fk:'',fr:'',fc:'',ft:'',sort:'title',key:0,capo:0,fs:19,set:null,pq:'',confirm:'',partsIdx:-1,wake:false,read:false,imp:false,note:''};
+var ui={fopen:false,pcat:'',pkey:'',tab:'songs',sel:null,edit:null,q:'',fk:'',fr:'',fc:'',ft:'',sort:'title',key:0,capo:0,fs:19,set:null,pq:'',confirm:'',partsIdx:-1,wake:false,read:false,imp:false,note:''};
 try{ var f=+localStorage.getItem('libro-cantos.fs'); if(f>=13&&f<=40) ui.fs=f; }catch(e){}
 var wide=function(){return window.matchMedia('(min-width:880px)').matches;};
 function pickSong(id){ var s=song(id); ui.sel=id; ui.edit=null; ui.confirm=''; ui.imp=false; ui.note=''; if(s){ ui.key=s.orig; ui.capo=(s.capoByKey||{})[ui.key]||0; } }
@@ -665,7 +668,8 @@ function buildSongs(){
     '<section class="pane list-pane" aria-label="Lista de cantos">'+
      '<div class="toolbar">'+
       '<button class="btn" data-a="cl-cat" style="width:100%">📚 Catálogo común: cantos de todos</button>'+
-      '<input class="input" id="f-q" type="search" placeholder="Buscar canto, autor, tema o etiqueta" value="'+esc(ui.q)+'" autocomplete="off">'+
+      '<div style="display:flex;gap:8px"><input class="input" id="f-q" type="search" placeholder="Buscar canto, autor, tema o etiqueta" value="'+esc(ui.q)+'" autocomplete="off" style="flex:1;min-width:0"><button class="btn" id="f-tg" data-a="ftoggle" aria-controls="f-box" style="white-space:nowrap"></button></div>'+
+      '<div id="f-box" class="fbox"'+(ui.fopen?'':' hidden')+'>'+
       '<div class="row2">'+
        '<select class="select" id="f-key" aria-label="Filtrar por tonalidad"><option value="">Toda tonalidad</option>'+LBL.map(function(n,i){return '<option value="'+i+'"'+(ui.fk===String(i)?' selected':'')+'>'+n+'</option>';}).join('')+'</select>'+
        '<select class="select" id="f-rhy" aria-label="Filtrar por ritmo"><option value="">Todo ritmo</option>'+Object.keys(rh).sort().map(function(r){return '<option'+(ui.fr===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select>'+
@@ -675,14 +679,16 @@ function buildSongs(){
        '<select class="select" id="f-sort" aria-label="Ordenar">'+[['title','Orden alfabético'],['stale','Más tiempo sin tocar'],['recent','Tocados hace poco'],['freq','Más tocados']].map(function(o){return '<option value="'+o[0]+'"'+(ui.sort===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
       '</div>'+
       '<select class="select" id="f-theme" aria-label="Filtrar por tema"><option value="">Todo tema</option>'+themeOpts()+'</select>'+
+      '</div>'+
       '<div class="row2"><button class="btn primary" data-a="new">+ Nuevo canto</button><button class="btn" data-a="impstart">Pegar de otra página</button></div>'+
      '</div>'+
      '<div class="list" id="list"></div>'+
     '</section>'+
     '<section class="pane detail-pane" id="detail" aria-live="polite"></section>'+
    '</div>';
-  renderList(); renderDetail(); syncSplit();
+  renderList(); renderDetail(); syncSplit(); fBtn();
 }
+function fBtn(){ var b=$('#f-tg'); if(!b) return; var n=[ui.fk,ui.fr,ui.fc,ui.ft].filter(Boolean).length+(ui.sort!=='title'?1:0); b.textContent='Filtros'+(n?' ('+n+')':'')+(ui.fopen?' ▴':' ▾'); b.setAttribute('aria-expanded',String(!!ui.fopen)); b.classList.toggle('on',n>0); }
 function themeOpts(){
   var c={}; db.songs.forEach(function(s){ s.themes.forEach(function(t){ c[t]=(c[t]||0)+1; }); });
   return Object.keys(c).sort(function(a,b){return a.localeCompare(b,'es');}).map(function(t){return '<option value="'+esc(t)+'"'+(ui.ft===t?' selected':'')+'>'+esc(t)+' ('+c[t]+')</option>';}).join('');
@@ -705,7 +711,7 @@ function filtered(){
   if(ui.sort==='freq') a.sort(function(x,y){return y.history.length-x.history.length||cmpT(x,y);});
   return a;
 }
-function renderList(){
+function renderList(){ fBtn();
   var el=$('#list'); if(!el) return;
   var a=filtered();
   if(!db.songs.length){ el.innerHTML='<div class="empty">Todavía no hay cantos. Toca “Nuevo canto” para agregar el primero.</div>'; return; }
@@ -1852,6 +1858,7 @@ document.addEventListener('click',function(e){
       ml.forEach(function(l){ out.push(l.t==='sec'?'['+l.x+']':l.x); });
       ta.value=ta.value.replace(/\s+$/,'')+'\n'+out.join('\n').replace(/\n{3,}/g,'\n\n')+'\n'; ta.scrollTop=ta.scrollHeight;
       toast('"'+ms.title+'" agregado al final'+(nc2?' (solo letra)':'')+'. Revisa y toca Guardar.'); break; }
+  case 'ftoggle': ui.fopen=!ui.fopen; var fb=$('#f-box'); if(fb) fb.hidden=!ui.fopen; fBtn(); break;
   case 'addto': addSheet(); break;
   case 'addto-x': { var as=$('#addset'); if(as) as.remove(); } break;
   case 'addto-go': { var as2=$('#addset'); if(as2) as2.remove(); addToSet(db.sets.filter(function(y){return y.id===t.dataset.id;})[0]); } break;
