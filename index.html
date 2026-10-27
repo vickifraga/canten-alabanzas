@@ -223,6 +223,14 @@ body.pl-open{overflow:hidden}
 .pl-nav{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:.92;z-index:3}
 .pl-nav:disabled{opacity:.3}
 .pl-page.last{padding-bottom:84px}
+.fold{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.fold>summary{padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px;min-height:48px;list-style:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::after{content:'▾';color:var(--muted)}
+.fold[open]>summary::after{content:'▴'}
+.fold>summary .lab{white-space:nowrap;margin:0}
+.fold>summary .sel{flex:1;min-width:0;text-align:right;color:var(--muted);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fold .body{padding:0 14px 14px}
 .fbox{display:grid;gap:8px}
 .fbox[hidden]{display:none}
 #f-tg.on{border-color:var(--accent);color:var(--accent)}
@@ -740,7 +748,7 @@ function related(s){
 }
 function renderDetail(){
   var el=$('#detail'); if(!el) return;
-  if(ui.edit){ el.innerHTML=editorHTML(); return; }
+  if(ui.edit){ el.innerHTML=editorHTML(); foldSum(); return; }
   if(ui.imp){ el.innerHTML=importHTML(); return; }
   var s=song(ui.sel);
   if(!s){ el.innerHTML='<div class="empty">Elige un canto de la lista para ver su letra con acordes.</div>'; return; }
@@ -819,13 +827,13 @@ function editorHTML(){
     '<label class="f">Título<input class="input" id="e-title" value="'+esc(s.title)+'" autocomplete="off"></label>'+
     '<div class="grid2"><label class="f">Autor o álbum<input class="input" id="e-artist" value="'+esc(s.artist)+'"></label>'+
      '<label class="f">Etiquetas, separadas por coma<input class="input" id="e-tags" value="'+esc(s.tags.join(', '))+'"></label></div>'+
-    '<div><div class="lab">Categorías (puedes elegir varias)</div><div class="chips" id="e-cats" style="margin-top:6px">'+CATS.map(function(c){var on=(s.cats||[]).indexOf(c[0])>-1; return '<button type="button" class="chip wide'+(on?' on':'')+'" data-a="cc" data-c="'+c[0]+'" aria-pressed="'+on+'">'+c[1]+'</button>';}).join('')+'</div></div>'+
-    '<div><div class="lab">Temas: de qué trata el canto</div><div class="chips" id="e-themes" style="margin-top:6px">'+themeChips(s)+'</div>'+
-     '<label class="f" style="margin-top:8px">Otros temas, separados por coma<input class="input" id="e-themes-x" value="'+esc((s.themes||[]).filter(function(t){return THEMES.indexOf(t)<0;}).join(', '))+'" placeholder="Ej.: Bautismo, Misiones"></label></div>'+
+    '<details class="fold"><summary><span class="lab">Categorías</span><span class="sel" id="sm-cats"></span></summary><div class="body"><div class="chips" id="e-cats">'+CATS.map(function(c){var on=(s.cats||[]).indexOf(c[0])>-1; return '<button type="button" class="chip wide'+(on?' on':'')+'" data-a="cc" data-c="'+c[0]+'" aria-pressed="'+on+'">'+c[1]+'</button>';}).join('')+'</div></div></details>'+
+    '<details class="fold"><summary><span class="lab">Temas: de qué trata</span><span class="sel" id="sm-themes"></span></summary><div class="body"><div class="chips" id="e-themes">'+themeChips(s)+'</div>'+
+     '<label class="f" style="margin-top:8px">Otros temas, separados por coma<input class="input" id="e-themes-x" value="'+esc((s.themes||[]).filter(function(t){return THEMES.indexOf(t)<0;}).join(', '))+'" placeholder="Ej.: Bautismo, Misiones"></label></div></details>'+
     '<div class="grid2"><label class="f">Tempo (bpm)<input class="input" id="e-tempo" type="number" inputmode="numeric" min="30" max="240" value="'+esc(s.tempo)+'"></label>'+
      '<label class="f">Ritmo o compás<input class="input" id="e-rhythm" list="rhy" value="'+esc(s.rhythm)+'"><datalist id="rhy">'+rhy.map(function(r){return '<option value="'+r+'">';}).join('')+'</datalist></label></div>'+
     '<label class="f">Tonalidad en que están escritos los acordes (si es menor, elige su tono mayor equivalente: Do#m → Mi)<select class="select" id="e-orig">'+orig+'</select></label>'+
-    '<div><div class="lab">Tonalidades en las que puedo cantarlo</div><div class="chips" id="e-keys" style="margin-top:6px">'+LBL.map(function(n,i){return '<button type="button" class="chip'+(s.keys.indexOf(i)>-1?' on':'')+'" data-a="kc" data-k="'+i+'" aria-pressed="'+(s.keys.indexOf(i)>-1)+'">'+n+'</button>';}).join('')+'</div></div>'+
+    '<details class="fold"><summary><span class="lab">Tonalidades en las que lo canto</span><span class="sel" id="sm-keys"></span></summary><div class="body"><div class="chips" id="e-keys">'+LBL.map(function(n,i){return '<button type="button" class="chip'+(s.keys.indexOf(i)>-1?' on':'')+'" data-a="kc" data-k="'+i+'" aria-pressed="'+(s.keys.indexOf(i)>-1)+'">'+n+'</button>';}).join('')+'</div></div></details>'+
     '<label class="f">Letra con acordes<textarea class="textarea mono" id="e-chart" rows="14" spellcheck="false" placeholder="Pega la letra con los acordes arriba de cada línea, o con los acordes entre corchetes, por ejemplo: Tú [G]eres mi [C]roca">'+esc(s.chart)+'</textarea></label>'+
     '<div class="hint" style="margin-top:-8px">Para marcar secciones escribe una línea como [Coro] o Verso 1.</div>'+
     '<div class="card" style="gap:8px"><h3>Unir otro canto al final</h3><select class="select" id="merge-sel" aria-label="Canto a unir"><option value="">Elige un canto…</option>'+db.songs.filter(function(o){return o.id!==s.id;}).sort(function(x,y){return x.title.localeCompare(y.title,'es');}).map(function(o){return '<option value="'+o.id+'">'+esc(o.title)+'</option>';}).join('')+'</select>'+
@@ -835,6 +843,13 @@ function editorHTML(){
     '<div class="actions"><button class="btn primary" data-a="save">Guardar canto</button><button class="btn" data-a="cancel">Cancelar</button>'+
     (isNew?'':'<button class="btn danger'+(ui.confirm==='del'?' sure':'')+'" data-a="delete">'+(ui.confirm==='del'?'Toca otra vez para eliminar':'Eliminar')+'</button>')+'</div>'+
    '</div>';
+}
+function foldSum(){
+  [['cats','#e-cats','Ninguna'],['themes','#e-themes','Ninguno'],['keys','#e-keys','Ninguna']].forEach(function(f){
+    var el=$('#sm-'+f[0]); if(!el) return;
+    var on=[].slice.call(document.querySelectorAll(f[1]+' .chip.on')).map(function(b){return b.textContent;});
+    el.textContent=on.length?on.join(', '):f[2];
+  });
 }
 function themeChips(s){
   var cur=s.themes||[];
@@ -1815,7 +1830,7 @@ document.addEventListener('click',function(e){
   case 'save': saveEditor(); break;
   case 'rmbook': s=song(ui.sel); if(!s) break; if(ui.confirm==='rmbook') deleteSong(s.id); else { ui.confirm='rmbook'; renderDetail(); } break;
   case 'delete': if(ui.confirm==='del') deleteSong(ui.edit.id); else { ui.confirm='del'; t.textContent='Toca otra vez para eliminar'; t.classList.add('sure'); } break;
-  case 'kc': case 'cc': case 'tc': t.classList.toggle('on'); t.setAttribute('aria-pressed',t.classList.contains('on')); break;
+  case 'kc': case 'cc': case 'tc': t.classList.toggle('on'); t.setAttribute('aria-pressed',t.classList.contains('on')); foldSum(); break;
   case 'key': s=song(ui.sel); ui.key=+t.dataset.k; ui.capo=(s.capoByKey||{})[ui.key]||0; renderDetail(); break;
   case 'capo': s=song(ui.sel); ui.capo=+t.dataset.c; s.capoByKey=s.capoByKey||{}; s.capoByKey[ui.key]=ui.capo; save(); renderDetail(); break;
   case 'fs': ui.fs=Math.max(13,Math.min(40,ui.fs+(+t.dataset.d)*2)); try{localStorage.setItem('libro-cantos.fs',ui.fs);}catch(err){} renderDetail(); break;
