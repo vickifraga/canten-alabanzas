@@ -222,6 +222,16 @@ body.pl-open{overflow:hidden}
 .player:not([data-dir="v"]) .pl-next{display:none}
 .pl-nav{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.5rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.18);opacity:.92;z-index:3}
 .pl-nav:disabled{opacity:.3}
+.pl-page.last{padding-bottom:84px}
+.pl-add{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:3;min-height:52px;padding:0 22px;border-radius:26px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.pl-add[hidden]{display:none}
+.player[data-dir="v"] .pl-add{display:none}
+.player[data-dir="v"] .pl-page.last{padding-bottom:36px}
+.pl-sheet{position:absolute;inset:0;z-index:6;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+.pl-sheet .box{background:var(--surface);border-radius:18px 18px 0 0;padding:16px;display:grid;gap:10px;width:100%;max-width:560px;max-height:82vh;overflow:auto;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+.pl-sheet .sg{display:grid;gap:0}
+.pl-sheet .sg .row-s{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:9px 0}
+.pl-sheet .sg .row-s .grow{flex:1;min-width:0;display:grid}
 .player[data-dir="v"] .pl-nav{display:none}
 </style>
 
@@ -230,7 +240,7 @@ body.pl-open{overflow:hidden}
   <main id="main"></main>
   <nav class="tabs" aria-label="Secciones">
     <button class="tab" data-a="tab" data-tab="songs"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><span>Cantos</span></button>
-    <button class="tab" data-a="tab" data-tab="sets"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>Repertorios</span></button>
+    <button class="tab" data-a="tab" data-tab="sets"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg><span>Playlists</span></button>
     <button class="tab" data-a="tab" data-tab="cloud"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5a3 3 0 0 1 0 6M18 14c1.8.8 3 2.6 3 5"/></svg><span>Perfil</span></button>
   </nav>
 </div>
@@ -742,7 +752,7 @@ function renderDetail(){
     '<div class="sub">'+[s.artist,s.tempo?s.tempo+' bpm':'',s.rhythm].filter(Boolean).map(esc).join(' · ')+'</div>'+
     '<div class="tags">'+s.cats.map(function(c){return '<span class="tag cat">'+catLabel(c)+'</span>';}).join('')+s.themes.map(function(t){return '<span class="tag th">'+esc(t)+'</span>';}).join('')+s.tags.map(function(t){return '<span class="tag'+(t==='ejemplo'?' ex':'')+'">'+esc(t)+'</span>';}).join('')+'</div>'+
     '<div class="hint">'+(lp?'Último: <b>'+ago(daysSince(lp.d))+'</b> en '+keyName(lp.k,s.minor):'Aún no registrado como tocado.')+'</div>'+
-    '<div class="actions"><button class="btn primary" data-a="read">Modo lectura</button><button class="btn" data-a="edit">Editar</button>'+cloudBtns(s)+'<button class="btn danger'+(ui.confirm==='rmbook'?' sure':'')+'" data-a="rmbook">'+(ui.confirm==='rmbook'?'Toca otra vez para quitarlo de mi libro':'Quitar de mi libro')+'</button></div>'+(ui.confirm==='rmbook'?'<div class="hint">Solo se quita de este dispositivo. Si está en el catálogo, ahí sigue.</div>':'')+
+    '<div class="actions"><button class="btn primary" data-a="read">Modo lectura</button><button class="btn" data-a="edit">Editar</button>'+cloudBtns(s)+'</div><div class="actions"><button class="btn" data-a="addto">＋ Agregar a playlist</button></div>'+
    '</div>'+
    '<div class="card">'+
     '<div><div class="lab">Tonalidad que suena</div><div class="chips" style="margin-top:6px">'+kc+'</div><div class="hint" style="margin-top:6px">El punto marca las tonalidades en las que sueles cantarlo. Acordes escritos en '+keyName(s.orig,s.minor)+'.</div></div>'+
@@ -765,8 +775,24 @@ function renderDetail(){
    '<div class="card"><h3>Historial</h3>'+
     '<div class="pairrow"><input class="input" type="date" id="played-date" value="'+today()+'" aria-label="Fecha en que se tocó"><button class="btn primary" data-a="played">Lo toqué en '+keyName(ui.key,s.minor)+'</button></div>'+
     (hist.length?'<ul class="list-plain">'+hist.slice(0,8).map(function(h){return '<li><span>'+fmtDate(h.d)+' · <b>'+keyName(h.k,s.minor)+'</b> <span class="why">('+ago(daysSince(h.d))+')</span></span><button class="btn sm" data-a="rmhist" data-d="'+h.d+'" aria-label="Quitar registro">✕</button></li>';}).join('')+'</ul>'+(hist.length>8?'<div class="hint">Y '+(hist.length-8)+' más antiguos.</div>':''):'<div class="hint">Sin registros todavía.</div>')+
-   '</div>';
+   '</div>'+
+   '<div class="card"><button class="btn danger'+(ui.confirm==='rmbook'?' sure':'')+'" data-a="rmbook">'+(ui.confirm==='rmbook'?'Toca otra vez para quitarlo de mi libro':'Quitar de mi libro')+'</button><div class="hint">Solo se quita de este dispositivo. Si está en el catálogo, ahí sigue.</div></div>';
   fitChart();
+}
+function addSheet(){
+  var s=song(ui.sel); if(!s) return; var old=$('#addset'); if(old) old.remove();
+  var d=document.createElement('div'); d.id='addset'; d.className='exitask';
+  var list=db.sets.slice().sort(function(x,y){return x.date<y.date?1:-1;}).slice(0,30).map(function(x){
+    var has=x.items.some(function(i){return i.sid===s.id;});
+    return '<button class="btn" data-a="addto-go" data-id="'+x.id+'" style="justify-content:space-between;width:100%"><span>'+esc(setTitle(x))+' <small class="hint">'+esc(fmtDate(x.date))+'</small></span>'+(has?'<small class="hint">✓ ya está</small>':'')+'</button>';}).join('');
+  d.innerHTML='<div class="box" role="dialog" aria-label="Agregar a playlist" style="max-height:80vh;overflow:auto"><b>Agregar a playlist</b><div class="hint">«'+esc(s.title)+'» en '+keyName(ui.key,s.minor)+'</div>'+list+
+   '<button class="btn primary" data-a="addto-new">＋ Nueva playlist con este canto</button><button class="btn" data-a="addto-x">Cancelar</button></div>';
+  document.body.appendChild(d);
+}
+function addToSet(x){
+  var s=song(ui.sel); if(!x||!s) return;
+  if(x.items.some(function(i){return i.sid===s.id;})){ toast('Ya está en esa playlist'); return; }
+  x.items.push({sid:s.id,k:ui.key}); save(); toast('Agregado a «'+setTitle(x)+'»');
 }
 function readHTML(s){
   var capo=ui.capo, shape=mod(ui.key-capo);
@@ -834,34 +860,34 @@ function deleteSong(id){
 
 /* ---------- REPERTORIOS ---------- */
 function curSet(){return db.sets.filter(function(x){return x.id===ui.set;})[0];}
-function setTitle(x){return x.name||'Servicio';}
+function setTitle(x){return x.name||'Playlist';}
 function buildSets(){
   $('#main').innerHTML=
    '<div class="split" id="split">'+
-    '<section class="pane list-pane" aria-label="Repertorios"><div class="toolbar"><button class="btn primary" data-a="setnew">+ Nuevo repertorio</button><button class="btn" data-a="cl-shared">👥 Compartidos con mi equipo</button></div><div class="list" id="set-list"></div></section>'+
+    '<section class="pane list-pane" aria-label="Playlists"><div class="toolbar"><button class="btn primary" data-a="setnew">+ Nueva playlist</button><button class="btn" data-a="cl-shared">👥 Compartidos con mi equipo</button></div><div class="list" id="set-list"></div></section>'+
     '<section class="pane detail-pane" id="set-detail"></section></div>';
   renderSetList(); renderSetDetail(); syncSetSplit();
 }
 function syncSetSplit(){ var el=$('#split'); if(el) el.classList.toggle('has-sel',!!ui.set); }
 function renderSetList(){
   var el=$('#set-list'); if(!el) return;
-  if(!db.sets.length){ el.innerHTML='<div class="empty">Aún no hay repertorios. Crea uno para armar el orden de los cantos de un domingo.</div>'; return; }
+  if(!db.sets.length){ el.innerHTML='<div class="empty">Aún no hay playlists. Crea una para armar el orden de los cantos de un domingo.</div>'; return; }
   el.innerHTML=db.sets.slice().sort(function(a,b){return a.date<b.date?1:-1;}).map(function(x){
     return '<button class="set-row" data-a="setsel" data-id="'+x.id+'" aria-current="'+(x.id===ui.set)+'"><b>'+esc(setTitle(x))+'</b><span class="hint">'+fmtDate(x.date)+' · '+x.items.length+' cantos</span></button>';
   }).join('');
 }
 function renderSetDetail(){
   var el=$('#set-detail'); if(!el) return; var x=curSet();
-  if(!x){ el.innerHTML='<div class="empty">Elige un repertorio o crea uno nuevo.</div>'; return; }
+  if(!x){ el.innerHTML='<div class="empty">Elige una playlist o crea una nueva.</div>'; return; }
   el.innerHTML=
-   '<button class="btn sm back" data-a="setback" style="margin-bottom:12px">← Repertorios</button>'+
+   '<button class="btn sm back" data-a="setback" style="margin-bottom:12px">← Playlists</button>'+
    '<div class="card"><div class="grid2"><label class="f">Nombre<input class="input" id="set-name" value="'+esc(x.name)+'" placeholder="Domingo por la mañana"></label>'+
    '<label class="f">Fecha<input class="input" type="date" id="set-date" value="'+x.date+'"></label></div></div>'+
    '<div class="startbar"><button class="btn primary" data-a="plstart">▶ Empezar</button><button class="btn" data-a="plstart" data-nc="1" style="min-height:52px">▶ Solo letra (sin acordes)</button><span class="hint" style="align-self:center">Todos los cantos juntos, deslizando de uno a otro.</span></div>'+
    '<div class="startbar" style="margin-top:-4px"><button class="btn" data-a="setimg">⬇ Descargar como imágenes</button><button class="btn" data-a="setimg" data-nc="1">⬇ Imágenes solo letra</button><button class="btn" data-a="cl-shareset" data-id="'+x.id+'">👥 Compartir con mi equipo</button><span class="hint" style="align-self:center;flex-basis:100%">Para compartirlo o tenerlo sin internet: una imagen por canto (los coritos seguidos van juntos).</span></div>'+
    '<div class="items" id="set-items"></div>'+
    '<div class="card"><h3>Agregar canto</h3><input class="input" id="pick-q" type="search" placeholder="Buscar por título, tema, etiqueta o ritmo" value="'+esc(ui.pq)+'" autocomplete="off"><div class="chips" id="pick-cats" style="margin-top:2px"></div><div id="pick-results" class="pick-results"></div></div>'+
-   '<div class="actions"><button class="btn primary" data-a="setplayed">Marcar como tocados</button><button class="btn danger'+(ui.confirm==='setdel'?' sure':'')+'" data-a="setdel">'+(ui.confirm==='setdel'?'Toca otra vez para eliminar':'Eliminar repertorio')+'</button></div>';
+   '<div class="actions"><button class="btn primary" data-a="setplayed">Marcar como tocados</button><button class="btn danger'+(ui.confirm==='setdel'?' sure':'')+'" data-a="setdel">'+(ui.confirm==='setdel'?'Toca otra vez para eliminar':'Eliminar playlist')+'</button></div>';
   renderItems(); renderPick();
 }
 function transition(a,b){
@@ -928,7 +954,7 @@ function renderItems(){
     return (i>0?transition(x.items[i-1],it):'')+
      '<div class="item"><span class="no">'+(i+1)+'</span><div class="grow"><button class="btn link ttl" data-a="openitem" data-i="'+i+'">'+esc(s.title)+'</button><div class="hint">'+[s.tempo?s.tempo+' bpm':'',s.rhythm].filter(Boolean).map(esc).join(' · ')+'</div>'+(it.parts&&it.parts.length?'<div class="hint only">Solo: '+esc(partsLabel(s,it.parts))+'</div>':'')+'</div>'+
      '<div class="ctl"><select class="select ksel" data-i="'+i+'" aria-label="Tonalidad de '+esc(s.title)+'">'+opts+'</select>'+
-     '<button class="iconbtn" data-a="up" data-i="'+i+'" aria-label="Subir">↑</button><button class="iconbtn" data-a="down" data-i="'+i+'" aria-label="Bajar">↓</button><button class="iconbtn" data-a="rmitem" data-i="'+i+'" aria-label="Quitar del repertorio">✕</button></div>'+
+     '<button class="iconbtn" data-a="up" data-i="'+i+'" aria-label="Subir">↑</button><button class="iconbtn" data-a="down" data-i="'+i+'" aria-label="Bajar">↓</button><button class="iconbtn" data-a="rmitem" data-i="'+i+'" aria-label="Quitar de la playlist">✕</button></div>'+
      '<div class="sub-actions"><button class="btn sm" data-a="parts" data-i="'+i+'" aria-expanded="'+(ui.partsIdx===i)+'">'+(it.parts&&it.parts.length?'Cambiar partes':'Elegir partes')+'</button><button class="btn sm" data-a="repeat" data-i="'+i+'">Repetir una parte al final</button></div>'+
      (ui.partsIdx===i?partsBox(it,i):'')+'</div>';
   }).join('');
@@ -973,7 +999,7 @@ function renderPick(){
       html+='<div class="lab" style="margin-top:6px">'+(same?'Para cerrar con chanting en el mismo tono ('+keyName(last.k,false)+')':'Chanting en tonos cercanos al último')+'</div><ul class="list-plain">'+
         ch.map(function(c){ var why=[c.d===0?'mismo tono':'a '+c.d+(c.d===1?' semitono':' semitonos')]; if(c.s.tempo) why.push(c.s.tempo+' bpm'); if(c.days!==null&&c.days<14) why.push('tocado '+ago(c.days)); return row(c.s,c.k,why); }).join('')+'</ul>';
     }
-    if(!html) html='<div class="hint">Todos los cantos ya están en este repertorio.</div>';
+    if(!html) html='<div class="hint">Todos los cantos ya están en esta playlist.</div>';
   } else {
     var m=db.songs.filter(function(s){return used.indexOf(s.id)<0 && (s.title+' '+s.artist+' '+s.tags.join(' ')+' '+s.themes.join(' ')+' '+s.rhythm+' '+s.cats.map(catLabel).join(' ')).toLowerCase().indexOf(q)>-1;})  .filter(pfOk).slice(0,40);
     html=m.length?'<ul class="list-plain">'+m.map(function(s){return row(s,ui.pkey!==''?+ui.pkey:singKeys(s)[0],[]);}).join('')+'</ul>':'<div class="hint">Ningún canto de tu libro coincide.</div>';
@@ -1049,7 +1075,7 @@ function deliverFiles(files,title){
 }
 function setImagesGo(nc){
   var x=curSet(); if(!x) return;
-  var list=x.items.filter(function(it){return song(it.sid);}); if(!list.length){ toast('Agrega cantos al repertorio primero.'); return; }
+  var list=x.items.filter(function(it){return song(it.sid);}); if(!list.length){ toast('Agrega cantos a la playlist primero.'); return; }
   var items=groupCoritos(list), files=[], safe=function(t){ return t.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'canto'; };
   items.forEach(function(it,i){
     var title,meta='',L=[];
@@ -1088,10 +1114,52 @@ function plSave(){ try{ localStorage.setItem('libro-cantos.player',JSON.stringif
 function plStart(nc){
   var x=curSet(); if(!x) return;
   PL.raw=x.items.filter(function(it){return song(it.sid);}); PL.join=true; PL.items=groupCoritos(PL.raw);
-  if(!PL.items.length){ toast('Agrega cantos al repertorio primero.'); return; }
+  if(!PL.items.length){ toast('Agrega cantos a la playlist primero.'); return; }
   plLoad(); PL.nc=!!nc; PL.on=true; PL.i=0; ui.partsIdx=-1;
   document.body.classList.add('pl-open'); setWake(true,true);
   plBuild(false);
+}
+function liveSuggest(x,q){
+  var last=x.items[x.items.length-1], used=x.items.map(function(i){return i.sid;}), ls=last&&song(last.sid);
+  var pool=db.songs.filter(function(s){return used.indexOf(s.id)<0;});
+  if(!last) return {ch:[],ot:pool.slice(0,0),res:[]};
+  function info(s){ var b=bestKeyNear(s,last.k), d=sinceLast(s);
+    var why=b.d===0?'misma tonalidad':(mod(b.k-last.k)>6?'baja ':'sube ')+(b.d===1?'medio tono':b.d+' semitonos');
+    var sc=-b.d*1.5+(d===null?0.5:(d<14?-1.5:Math.min(0.8,d/60)));
+    if(ls&&ls.tempo&&s.tempo) sc-=Math.abs(ls.tempo-s.tempo)/60;
+    return {s:s,k:b.k,d:b.d,sc:sc,why:why}; }
+  if(q){ var nq=normT(q); return {res:pool.filter(function(s){return normT(s.title+' '+s.artist).indexOf(nq)>-1;}).slice(0,25).map(info)}; }
+  var all=pool.map(info).sort(function(p,r){return r.sc-p.sc;});
+  var isCh=function(o){return o.s.cats.indexOf('chanting')>-1;};
+  return {ch:all.filter(isCh).slice(0,6), ot:all.filter(function(o){return !isCh(o)&&o.d<=2;}).slice(0,8)};
+}
+function plSheetRows(){
+  var x=curSet(), q=($('#pl-q')||{}).value||'', el=$('#pl-sg'); if(!x||!el) return;
+  var last=x.items[x.items.length-1], r=liveSuggest(x,q.trim());
+  function row(o){ return '<div class="row-s"><div class="grow"><b>'+esc(o.s.title)+'</b><span class="hint">en '+keyName(o.k,o.s.minor)+' · '+o.why+'</span></div><button class="btn sm primary" data-a="pladd" data-id="'+o.s.id+'" data-k="'+o.k+'">Agregar</button></div>'; }
+  var h='';
+  if(r.res){ h=r.res.length?r.res.map(row).join(''):'<div class="hint">No hay cantos con ese nombre.</div>'; }
+  else {
+    h+=(r.ch.length?'<div class="lab">Para cerrar: chanting</div>'+r.ch.map(row).join(''):'<div class="hint">Todavía no tienes cantos marcados como chanting. Márcalos en Editar → Categorías.</div>')+
+       (r.ot.length?'<div class="lab" style="margin-top:8px">Otros que van con el tono</div>'+r.ot.map(row).join(''):'');
+  }
+  el.innerHTML='<div class="sg">'+h+'</div>';
+}
+function plMore(){
+  var x=curSet(), p=$('#player'); if(!x||!p||!x.items.length) return; var old=$('#pl-sheet'); if(old) old.remove();
+  var last=x.items[x.items.length-1], ls=song(last.sid);
+  var d=document.createElement('div'); d.id='pl-sheet'; d.className='pl-sheet';
+  d.innerHTML='<div class="box" role="dialog" aria-label="Enlazar otro canto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>Enlazar otro canto</b><button class="btn sm" data-a="plmore-x">Cerrar</button></div>'+
+    '<div class="hint">Vienes en <b>'+keyName(last.k,ls?ls.minor:false)+'</b>. Estos son los que mejor entran ahora. Se agregan al final de la playlist.</div>'+
+    '<input class="input" id="pl-q" type="search" placeholder="…o busca otro canto por nombre" autocomplete="off"><div id="pl-sg"></div></div>';
+  p.appendChild(d); plSheetRows();
+}
+function plAdd(sid,k){
+  var x=curSet(); if(!x||!song(sid)) return;
+  var it={sid:sid,k:k}; x.items.push(it); PL.raw.push(it); save();
+  PL.items=PL.join?groupCoritos(PL.raw):PL.raw.slice();
+  var sh=$('#pl-sheet'); if(sh) sh.remove();
+  PL.i=PL.items.length-1; plBuild(false); toast('«'+song(sid).title+'» agregado al final');
 }
 function plExit(){
   PL.on=false; var p=$('#player'); if(p) p.remove(); document.body.classList.remove('pl-open'); setWake(false);
@@ -1101,9 +1169,9 @@ function plGroupPage(it,idx){
   var parts=it.group.map(function(g){ var s2=song(g.sid), capo2=(s2.capoByKey||{})[g.k]||0, ch2=partsChart(s2,g.parts); if(PL.nc) ch2=lyricsOnly(ch2);
     var r2=renderChart({orig:s2.orig,minor:s2.minor,chart:ch2},g.k,capo2); if(r2.len>max) max=r2.len;
     return '<div class="grp"><div class="grp-t">'+esc(s2.title)+(PL.nc?'':' · '+keyName(g.k,s2.minor)+(capo2?' · capo '+capo2:''))+'</div>'+r2.html+'</div>'; });
-  return '<section class="pl-page" data-i="'+idx+'" aria-label="Cadena de coritos"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>Cadena de coritos</b><span class="pl-m">'+it.group.map(function(g){return esc(song(g.sid).title);}).join(' → ')+'</span></div>'+
+  return '<section class="pl-page'+(idx===N-1?' last':'')+'" data-i="'+idx+'" aria-label="Cadena de coritos"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>Cadena de coritos</b><span class="pl-m">'+it.group.map(function(g){return esc(song(g.sid).title);}).join(' → ')+'</span></div>'+
     '<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+max+'"><div class="cols">'+parts.join('')+'</div></div>'+
-    (nx?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
+    (nx?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin de la playlist<br><button class="btn primary" data-a="plmore" style="margin-top:8px;min-height:48px">＋ Enlazar otro canto</button></div>')+'</section>';
 }
 function plPage(it,idx){
   if(it.group) return plGroupPage(it,idx);
@@ -1114,12 +1182,12 @@ function plPage(it,idx){
   if(!ch.trim()) body='<div class="chart"><div class="chart-empty">Este canto aún no tiene letra ni acordes.</div></div>';
   else { var r=renderChart({orig:s.orig,minor:s.minor,chart:ch},it.k,capo); body='<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+r.len+'"><div class="cols">'+r.html+'</div></div>'; }
   var nx=PL.items[idx+1], nxs=nx&&song(nx.sid);
-  return '<section class="pl-page" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?(meta?' · ':'')+'Solo: '+esc(only):'')+'</span></div>'+body+
-    (nxs?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin del repertorio</div>')+'</section>';
+  return '<section class="pl-page'+(idx===N-1?' last':'')+'" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?(meta?' · ':'')+'Solo: '+esc(only):'')+'</span></div>'+body+
+    (nxs?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin de la playlist<br><button class="btn primary" data-a="plmore" style="margin-top:8px;min-height:48px">＋ Enlazar otro canto</button></div>')+'</section>';
 }
 function plBuild(keep){
   var old=$('#player'); if(old) old.remove();
-  var p=document.createElement('div'); p.id='player'; p.className='player'; p.dataset.dir=PL.dir; p.setAttribute('role','dialog'); p.setAttribute('aria-label','Repertorio en pantalla');
+  var p=document.createElement('div'); p.id='player'; p.className='player'; p.dataset.dir=PL.dir; p.setAttribute('role','dialog'); p.setAttribute('aria-label','Playlist en pantalla');
   var D=[['v','Hacia abajo'],['l','Hacia la izquierda'],['r','Hacia la derecha']], C=[[0,'Auto'],[1,'1'],[2,'2'],[3,'3'],[4,'4']];
   var h=PL.dir!=='v', nextLeft=PL.dir==='r';
   p.innerHTML=
@@ -1134,6 +1202,7 @@ function plBuild(keep){
    '</div>'+
    '<div class="pl-track" id="pl-track">'+PL.items.map(plPage).join('')+
    (h?'<button class="pl-nav" style="'+(nextLeft?'left':'right')+':14px" data-a="plnext" aria-label="Siguiente canto" id="pl-bn">'+(nextLeft?'‹':'›')+'</button><button class="pl-nav" style="'+(nextLeft?'right':'left')+':14px" data-a="plprev" aria-label="Canto anterior" id="pl-bp">'+(nextLeft?'›':'‹')+'</button>':'')+
+   '<button class="btn primary pl-add" id="pl-add" data-a="plmore" hidden>＋ Enlazar otro canto</button>'+
    '</div>';
   if(keep) p.querySelector('.pl-set').hidden=false;
   document.body.appendChild(p);
@@ -1151,7 +1220,7 @@ function plFit(){
     if(c.classList.contains('nc')){
       var fn=plF(), c0=PL.cols>0?PL.cols:1, c1=PL.cols>0?PL.cols:(vert?1:3);
       if(vert){ set(fn,c0); return; }
-      var hd0=pg.querySelector('.pl-h'), tg0=pg.clientHeight-hd0.offsetHeight-30;
+      var hd0=pg.querySelector('.pl-h'), tg0=pg.clientHeight-hd0.offsetHeight-30-(pg.classList.contains('last')?60:0);
       for(var f2=fn;f2>=16;f2-=2){ for(var k0=c0;k0<=c1;k0++){ set(f2,k0); if(cols.scrollHeight<=tg0) return; } }
       set(16,c1); return;
     }
@@ -1159,7 +1228,7 @@ function plFit(){
     if(PL.cols>0){
       n=PL.cols; f=Math.max(vert?13:11,Math.min(f,Math.floor((avail-gap*(n-1))/n/(len*W))));
       set(f,n);
-      if(!vert){ var hdr=pg.querySelector('.pl-h'), tgt=pg.clientHeight-hdr.offsetHeight-30; while(cols.scrollHeight>tgt&&f>11){ f--; set(f,n); } }
+      if(!vert){ var hdr=pg.querySelector('.pl-h'), tgt=pg.clientHeight-hdr.offsetHeight-30-(pg.classList.contains('last')?60:0); while(cols.scrollHeight>tgt&&f>11){ f--; set(f,n); } }
       return;
     }
     if(len*W*f>avail) f=Math.max(vert?13:12,Math.floor(avail/(len*W)));
@@ -1181,6 +1250,7 @@ function plUpdate(){
   pos.textContent=(PL.i+1)+' de '+PL.items.length+' · '+plTitle(PL.items[PL.i]);
   nx.textContent=n?'Sigue: '+plTitle(n):'Último canto';
   var bn=$('#pl-bn'), bp=$('#pl-bp'); if(bn) bn.disabled=PL.i>=PL.items.length-1; if(bp) bp.disabled=PL.i<=0;
+  var ab=$('#pl-add'); if(ab) ab.hidden=PL.i!==PL.items.length-1;
 }
 function plGo(i,instant){
   var tr=$('#pl-track'); if(!tr) return; i=Math.max(0,Math.min(PL.items.length-1,i)); PL.i=i;
@@ -1277,7 +1347,7 @@ function buildCloud(){
   if(C.user&&C.mode!=='recover') cLoadSub();
 }
 function cAuthHTML(){
-  var m=C.mode, h='<div class="card"><h3>Tu cuenta</h3><div class="hint">Con una cuenta gratis: tus repertorios aparecen en todos tus dispositivos, usas el catálogo común de cantos y compartes repertorios con tu equipo.</div></div>';
+  var m=C.mode, h='<div class="card"><h3>Tu cuenta</h3><div class="hint">Con una cuenta gratis: tus playlists aparecen en todos tus dispositivos, usas el catálogo común de cantos y compartes playlists con tu equipo.</div></div>';
   var err=C.err?'<div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div>':'';
   if(m==='recover') return h+'<div class="card"><h3>Nueva contraseña</h3><label class="f">Escribe tu nueva contraseña<input class="input" id="cl-pass" type="password" autocomplete="new-password"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-newpw">Guardar contraseña</button></div></div>';
   if(m==='reset') return h+'<div class="card"><h3>Recuperar contraseña</h3><label class="f">Correo<input class="input" id="cl-email" type="email" autocomplete="email" value="'+esc(C.lastEmail||'')+'"></label>'+err+'<div class="actions"><button class="btn primary" data-a="cl-reset">Enviar enlace</button><button class="btn" data-a="cl-mode" data-m="in">Volver</button></div></div>';
@@ -1294,7 +1364,7 @@ function cAuthHTML(){
 function cHomeHTML(){
   var h='';
   if(C.sub==='catalog'&&!C.open) h='<div class="actions" style="margin-bottom:10px"><button class="btn" data-a="cl-go" data-tab="songs">← Mi libro de cantos</button></div>';
-  else if(C.sub==='sets') h='<div class="actions" style="margin-bottom:10px"><button class="btn" data-a="cl-go" data-tab="sets">← Mis repertorios</button></div>';
+  else if(C.sub==='sets') h='<div class="actions" style="margin-bottom:10px"><button class="btn" data-a="cl-go" data-tab="sets">← Mis playlists</button></div>';
   if(C.err) h+='<div class="card"><div class="hint" style="color:#b3261e" role="alert">'+esc(C.err)+'</div></div>';
   if(C.prog) h+='<div class="card"><div class="hint">'+esc(C.prog)+'</div></div>';
   return h+'<div id="cl-body"></div>';
@@ -1352,7 +1422,7 @@ function cOpenHTML(){
   if(v){
     h+='<div class="hint">Tono: '+esc(keyName(d.minor?mod((d.orig||0)+3):(d.orig||0),false))+(d.tempo?' · '+esc(d.tempo)+' bpm':'')+(d.rhythm?' · '+esc(d.rhythm):'')+'</div>'+
      '<pre class="mono" style="overflow:auto;max-height:46vh;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0;font-size:.875rem">'+esc(d.chart||'(sin letra)')+'</pre>'+
-     (db.sets.length?'<div class="actions" style="align-items:center"><select class="select" id="cl-setsel" aria-label="Repertorio" style="width:auto;flex:1;min-width:150px">'+db.sets.slice().sort(function(p,q){return p.date<q.date?1:-1;}).map(function(x){return '<option value="'+x.id+'">'+esc(setTitle(x))+' · '+esc(x.date)+'</option>';}).join('')+'</select><button class="btn primary" data-a="cl-addset">Agregar a repertorio</button></div>':'<div class="hint">Crea un repertorio en la pestaña Repertorios para poder agregarle cantos desde aquí.</div>')+
+     (db.sets.length?'<div class="actions" style="align-items:center"><select class="select" id="cl-setsel" aria-label="Playlist" style="width:auto;flex:1;min-width:150px">'+db.sets.slice().sort(function(p,q){return p.date<q.date?1:-1;}).map(function(x){return '<option value="'+x.id+'">'+esc(setTitle(x))+' · '+esc(x.date)+'</option>';}).join('')+'</select><button class="btn primary" data-a="cl-addset">Agregar a playlist</button></div>':'<div class="hint">Crea una playlist en la pestaña Playlists para poder agregarle cantos desde aquí.</div>')+
      '<div class="actions"><button class="btn primary" data-a="cl-add">'+(localOf(cs.id,cs.title)?'Usar esta versión en mi libro':'Agregar a mi libro')+'</button>'+
      (mineCreator&&v.id!==cs.main_version?'<button class="btn" data-a="cl-main">Hacer esta la versión principal</button>':'')+
      '<button class="btn" data-a="cl-report">Reportar</button>'+(localOf(cs.id,cs.title)?'<button class="btn danger'+(ui.confirm==='clrm'?' sure':'')+'" data-a="cl-rmlocal">'+(ui.confirm==='clrm'?'Toca otra vez para quitarlo de mi libro':'Quitar de mi libro')+'</button>':'')+
@@ -1427,7 +1497,7 @@ async function cLoadTeams(){
   C.teams=ts.map(function(t){ t.members=all.filter(function(x){return x.team_id===t.id;}); return t; });
 }
 function cTeamsHTML(){
-  var h='<div class="card"><h3>Mi equipo</h3><div class="hint">Un equipo es tu iglesia o tu grupo de alabanza. Los repertorios que compartas con el equipo los ven todos sus miembros. Los cantos del catálogo común los ve todo el mundo.</div>';
+  var h='<div class="card"><h3>Mi equipo</h3><div class="hint">Un equipo es tu iglesia o tu grupo de alabanza. Las playlists que compartas con el equipo las ven todos sus miembros. Los cantos del catálogo común los ve todo el mundo.</div>';
   (C.teams||[]).forEach(function(t){
     var own=t.owner===C.user.id;
     h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(t.name)+'</b>'+(own?' <small class="hint">(tú lo creaste)</small>':'')+
@@ -1451,8 +1521,8 @@ async function cLoadSets(){
 }
 function teamName(id){ var t=(C.teams||[]).filter(function(x){return x.id===id;})[0]; return t?t.name:''; }
 function cSetsHTML(){
-  var h='<div class="card"><h3>Compartir un repertorio con mi equipo</h3><div class="hint">'+((C.teams||[]).length?'Elige el repertorio y luego el equipo (o correos). Solo ellos lo verán.':'Primero crea o únete a un equipo en Perfil.')+'</div>';
-  if(!db.sets.length) h+='<div class="hint">Aún no tienes repertorios. Crea uno en la pestaña Repertorios.</div>';
+  var h='<div class="card"><h3>Compartir una playlist con mi equipo</h3><div class="hint">'+((C.teams||[]).length?'Elige la playlist y luego el equipo (o correos). Solo ellos lo verán.':'Primero crea o únete a un equipo en Perfil.')+'</div>';
+  if(!db.sets.length) h+='<div class="hint">Aún no tienes playlists. Crea una en la pestaña Playlists.</div>';
   db.sets.slice().sort(function(a,b){return a.date<b.date?1:-1;}).slice(0,30).forEach(function(x){
     var sid=cShares()[x.id];
     h+='<div style="border-top:1px solid var(--line);padding-top:8px"><b>'+esc(setTitle(x))+'</b> <small class="hint">'+esc(x.date)+' · '+x.items.length+' cantos'+(sid?' · ☁ compartido':'')+'</small>'+
@@ -1460,19 +1530,19 @@ function cSetsHTML(){
     if(C.sharing&&C.sharing.setId===x.id){
       h+='<div class="card" style="background:var(--bg)"><label class="f">Con un equipo<select class="select" id="cl-sh-team"><option value="">(ninguno)</option>'+(C.teams||[]).map(function(t){return '<option value="'+t.id+'">'+esc(t.name)+'</option>';}).join('')+'</select></label>'+
        '<label class="f">…y/o con estos correos (separados por coma)<input class="input" id="cl-sh-emails" type="text" autocomplete="off" placeholder="hermano@correo.com, otra@correo.com"></label>'+
-       '<div class="hint">Los cantos de este repertorio que aún no estén en el catálogo se agregarán para que los demás puedan abrirlos.</div>'+
+       '<div class="hint">Los cantos de esta playlist que aún no estén en el catálogo se agregarán para que los demás puedan abrirlos.</div>'+
        '<div class="actions"><button class="btn primary" data-a="cl-share-go">Compartir</button><button class="btn" data-a="cl-share-x">Cancelar</button></div></div>';
     }
   });
-  h+='</div><div class="card"><h3>Repertorios compartidos conmigo y con mi equipo</h3>';
+  h+='</div><div class="card"><h3>Playlists compartidas conmigo y con mi equipo</h3>';
   var rows=C.sets||[];
-  if(!rows.length) h+='<div class="hint">Todavía no hay repertorios compartidos.</div>';
+  if(!rows.length) h+='<div class="hint">Todavía no hay playlists compartidas.</div>';
   rows.forEach(function(r){
     var mine=r.owner===C.user.id, d=r.data||{}, its=d.items||[];
-    h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(r.title||'Servicio')+'</b> <small class="hint">'+esc(d.date||'')+' · '+its.length+' cantos</small>'+
+    h+='<div style="border-top:1px solid var(--line);padding-top:10px"><b>'+esc(r.title||'Playlist')+'</b> <small class="hint">'+esc(d.date||'')+' · '+its.length+' cantos</small>'+
      '<div class="hint">'+(mine?'Tú':esc(nameOf(r.owner)))+(r.team_id?' · equipo '+esc(teamName(r.team_id)||''):'')+(mine&&r.emails.length?' · con '+esc(r.emails.join(', ')):'')+'</div>'+
      '<div class="hint">'+its.map(function(i){return esc(i.t);}).join(' · ')+'</div>'+
-     '<div class="actions"><button class="btn primary" data-a="cl-copyset" data-id="'+r.id+'">Copiar a mis repertorios</button>'+
+     '<div class="actions"><button class="btn primary" data-a="cl-copyset" data-id="'+r.id+'">Copiar a mis playlists</button>'+
      (mine?'<button class="btn danger'+(ui.confirm==='sdel'+r.id?' sure':'')+'" data-a="cl-unshare" data-id="'+r.id+'">'+(ui.confirm==='sdel'+r.id?'Toca otra vez para dejar de compartir':'Dejar de compartir')+'</button>':'')+'</div></div>';
   });
   return h+'</div>';
@@ -1493,7 +1563,7 @@ async function cShareGo(){
   cShareSet(x.id,id);
   if(emails.length) ck(await C.sb.from('set_shares').upsert(emails.map(function(e){return {set_id:id,email:e};}),{onConflict:'set_id,email',ignoreDuplicates:true}));
   C.sharing=null; C.sets=null;
-  toast('Repertorio compartido'+(np?' ('+np+' cantos nuevos en el catálogo)':''));
+  toast('Playlist compartida'+(np?' ('+np+' cantos nuevos en el catálogo)':''));
 }
 async function cCopySet(id){
   var r=(C.sets||[]).filter(function(y){return y.id===id;})[0]; if(!r) return;
@@ -1506,8 +1576,8 @@ async function cCopySet(id){
     if(!s){ var v=vs[i.vid]; if(!v){ miss++; return; } s=songFromCloud({id:i.sid,title:i.t,artist:i.a||''},v); db.songs.push(s); }
     var o={sid:s.id,k:i.k}; if(i.parts) o.parts=i.parts; items.push(o);
   });
-  db.sets.push({id:uid(),name:(r.title||'Servicio'),date:today(),items:items}); save();
-  toast('Repertorio copiado a tu libro'+(miss?' ('+miss+' cantos no se pudieron abrir)':''));
+  db.sets.push({id:uid(),name:(r.title||'Playlist'),date:today(),items:items}); save();
+  toast('Playlist copiada a tu libro'+(miss?' ('+miss+' cantos no se pudieron abrir)':''));
 }
 
 /* --- sincronización entre dispositivos (repertorios + historial) --- */
@@ -1577,7 +1647,7 @@ async function cSync(){
     for(var i=0;i<up.length;i+=100) ck(await C.sb.from('user_sync').upsert(up.slice(i,i+100),{onConflict:'user_id,kind,item_id'}));
     if(changed) save();
     SY.last=Date.now(); syStore();
-    if(changed){ toast('Se actualizaron tus repertorios desde otro dispositivo'); var ae=document.activeElement; if(!PL.on&&!ui.edit&&!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) renderApp(); }
+    if(changed){ toast('Se actualizaron tus playlists desde otro dispositivo'); var ae=document.activeElement; if(!PL.on&&!ui.edit&&!(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) renderApp(); }
   } finally { C.syncing=false; }
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&C.user) cSync().catch(function(){}); });
@@ -1589,7 +1659,7 @@ function cAcctHTML(){
   var h='<div class="card"><h3>Mi cuenta</h3><div class="hint">'+esc(C.user.email)+'</div>'+
    '<label class="f">Mi nombre<input class="input" id="cl-myname" value="'+esc((C.prof&&C.prof.name)||'')+'" autocomplete="name"></label>'+
    '<div class="actions"><button class="btn" data-a="cl-savename">Guardar nombre</button><button class="btn" data-a="cl-logout">Salir</button></div></div>'+cTeamsHTML()+
-   '<div class="card"><h3>Sincronizar mis dispositivos</h3><div class="hint">Tus repertorios y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
+   '<div class="card"><h3>Sincronizar mis dispositivos</h3><div class="hint">Tus playlists y tu historial de cantos tocados se guardan en tu cuenta y aparecen en todos tus dispositivos al entrar. '+(SY.last?'Última vez: '+new Date(SY.last).toLocaleString('es-MX',{weekday:'short',hour:'2-digit',minute:'2-digit'})+'.':'Todavía no se ha sincronizado.')+'</div><div class="actions"><button class="btn primary" data-a="cl-sync">Sincronizar ahora</button></div></div>'+
    '<div class="card"><h3>Mis cantos en el catálogo común</h3>'+
    '<label style="display:flex;gap:10px;align-items:center;min-height:44px"><input type="checkbox" id="cl-auto" '+(C.auto?'checked':'')+' style="width:22px;height:22px"> <span>Compartir en el catálogo los cantos nuevos que yo cree</span></label>'+
    '<div class="hint">Al compartir, confirmas que tienes permiso para usar esa letra. Si un autor pide quitar un canto, se quita.</div>'+
@@ -1621,14 +1691,14 @@ async function cloudClick(a,t){
       var cs2=C.songs.filter(function(s){return s.id===C.open;})[0], v2=C.vers.filter(function(y){return y.id===C.selV;})[0], st=db.sets.filter(function(y){return y.id===cVal('cl-setsel');})[0]; if(!cs2||!v2||!st) break;
       var ex2=localOf(cs2.id,cs2.title);
       if(!ex2){ ex2=songFromCloud(cs2,v2); db.songs.push(ex2); } else if(!ex2.cloud){ ex2.cloud={sid:cs2.id,vid:'',h:'',own:false}; }
-      if(st.items.some(function(i){return i.sid===ex2.id;})){ toast('Ya está en ese repertorio'); break; }
+      if(st.items.some(function(i){return i.sid===ex2.id;})){ toast('Ya está en esa playlist'); break; }
       st.items.push({sid:ex2.id,k:singKeys(ex2)[0]}); save(); toast('Agregado a "'+setTitle(st)+'"'); cRender(); break; }
   case 'cl-pickadd': cRun(async function(){
       var cs3=C.songs.filter(function(s){return s.id===t.dataset.id;})[0], st3=curSet(); if(!cs3||!st3) return;
       var vr=ck(await C.sb.from('song_versions').select('id,song_id,author,name,data').eq('song_id',cs3.id).order('created_at')).data||[];
       var v3=vr.filter(function(y){return y.id===cs3.main_version;})[0]||vr[0]; if(!v3) throw new Error('Ese canto no tiene versiones.');
       var n3=songFromCloud(cs3,v3); db.songs.push(n3); st3.items.push({sid:n3.id,k:singKeys(n3)[0]}); save();
-      renderSetList(); renderItems(); clearPick(); },'Agregado al repertorio y a tu libro'); break;
+      renderSetList(); renderItems(); clearPick(); },'Agregado a la playlist y a tu libro'); break;
   case 'cl-sync': cRun(cSync,'Sincronizado'); break;
   case 'cl-importall': cRun(cImportAll); break;
   case 'cl-back': C.open=null; ui.confirm=''; cRender(); break;
@@ -1672,14 +1742,14 @@ try{ if(/^https?:$/.test(location.protocol)&&(localStorage.getItem('libro-cantos
 function backupHTML(){
   var nEx=db.songs.filter(function(s){return s.example;}).length, nH=db.songs.reduce(function(a,s){return a+s.history.length;},0);
   return '<div class="backup">'+
-   '<div class="card"><h3>Respaldo de este dispositivo</h3><div class="stat"><div><b>'+db.songs.length+'</b><small>cantos</small></div><div><b>'+db.sets.length+'</b><small>repertorios</small></div><div><b>'+nH+'</b><small>veces registradas</small></div></div>'+
+   '<div class="card"><h3>Respaldo de este dispositivo</h3><div class="stat"><div><b>'+db.songs.length+'</b><small>cantos</small></div><div><b>'+db.sets.length+'</b><small>playlists</small></div><div><b>'+nH+'</b><small>veces registradas</small></div></div>'+
    '<div class="hint">Todo se guarda en este dispositivo y navegador. Copia un respaldo de vez en cuando y pásalo a tu otro dispositivo para tener los mismos cantos.</div></div>'+
    '<div class="card"><h3>Sacar respaldo</h3><div class="actions"><button class="btn primary" data-a="export">Copiar respaldo</button></div>'+
    '<textarea class="textarea mono" id="b-out" readonly rows="5" aria-label="Texto del respaldo"></textarea><div class="hint">Pega ese texto en un mensaje o nota a ti mismo. En el otro dispositivo lo pegas aquí abajo.</div></div>'+
    '<div class="card"><h3>Cargar respaldo</h3><textarea class="textarea mono" id="b-in" rows="5" placeholder="Pega aquí el respaldo" aria-label="Pegar respaldo"></textarea>'+
    '<label class="f">…o elige un archivo de respaldo<input class="input" type="file" id="b-file" accept=".json,application/json,text/plain"></label>'+
    '<div class="actions"><button class="btn primary" data-a="imp-merge">Combinar con lo que tengo</button><button class="btn danger'+(ui.confirm==='imp'?' sure':'')+'" data-a="imp-replace">'+(ui.confirm==='imp'?'Toca otra vez para reemplazar todo':'Reemplazar todo')+'</button></div>'+
-   '<div class="hint">Combinar agrega los cantos y repertorios nuevos y suma el historial. Reemplazar borra lo que hay en este dispositivo.</div></div>'+
+   '<div class="hint">Combinar agrega los cantos y playlists nuevas y suma el historial. Reemplazar borra lo que hay en este dispositivo.</div></div>'+
    (nEx?'<div class="card"><h3>Cantos de ejemplo</h3><div class="hint">Hay '+nEx+' cantos de muestra para probar la app.</div><div class="actions"><button class="btn" data-a="rm-ex">Quitar cantos de ejemplo</button></div></div>':'')+
    '</div>';
 }
@@ -1782,12 +1852,19 @@ document.addEventListener('click',function(e){
       ml.forEach(function(l){ out.push(l.t==='sec'?'['+l.x+']':l.x); });
       ta.value=ta.value.replace(/\s+$/,'')+'\n'+out.join('\n').replace(/\n{3,}/g,'\n\n')+'\n'; ta.scrollTop=ta.scrollHeight;
       toast('"'+ms.title+'" agregado al final'+(nc2?' (solo letra)':'')+'. Revisa y toca Guardar.'); break; }
+  case 'addto': addSheet(); break;
+  case 'addto-x': { var as=$('#addset'); if(as) as.remove(); } break;
+  case 'addto-go': { var as2=$('#addset'); if(as2) as2.remove(); addToSet(db.sets.filter(function(y){return y.id===t.dataset.id;})[0]); } break;
+  case 'addto-new': { var as3=$('#addset'); if(as3) as3.remove(); var nx0={id:uid(),name:'',date:today(),items:[]}; db.sets.push(nx0); addToSet(nx0); } break;
+  case 'plmore': plMore(); break;
+  case 'plmore-x': { var ps=$('#pl-sheet'); if(ps) ps.remove(); } break;
+  case 'pladd': plAdd(t.dataset.id,+t.dataset.k); break;
   case 'additem': x=curSet(); x.items.push({sid:t.dataset.id,k:+t.dataset.k}); save(); renderSetList(); renderItems(); clearPick(); break;
   case 'rmitem': x=curSet(); ui.partsIdx=-1; x.items.splice(+t.dataset.i,1); save(); renderSetList(); renderItems(); renderPick(); break;
   case 'up': case 'down': x=curSet(); ui.partsIdx=-1; var i=+t.dataset.i, j=a==='up'?i-1:i+1; if(j>=0&&j<x.items.length){ var tmp=x.items[i]; x.items[i]=x.items[j]; x.items[j]=tmp; save(); renderItems(); renderPick(); } break;
   case 'openitem': x=curSet(); var it=x.items[+t.dataset.i]; pickSong(it.sid); ui.key=it.k; var sg=song(it.sid); ui.capo=(sg.capoByKey||{})[ui.key]||0; ui.tab='songs'; renderApp(); syncSplit(); break;
-  case 'setplayed': x=curSet(); if(!x.items.length){ toast('Agrega cantos al repertorio primero.'); break; } x.items.forEach(function(it){ var sg2=song(it.sid); if(!sg2) return; sg2.history=sg2.history.filter(function(h){return h.d!==x.date;}); sg2.history.push({d:x.date,k:it.k}); }); save(); renderPick(); toast('Historial actualizado con '+x.items.length+' cantos'); break;
-  case 'setdel': if(ui.confirm==='setdel'){ db.sets=db.sets.filter(function(y){return y.id!==ui.set;}); ui.set=null; ui.confirm=''; save(); buildSets(); toast('Repertorio eliminado'); } else { ui.confirm='setdel'; renderSetDetail(); } break;
+  case 'setplayed': x=curSet(); if(!x.items.length){ toast('Agrega cantos a la playlist primero.'); break; } x.items.forEach(function(it){ var sg2=song(it.sid); if(!sg2) return; sg2.history=sg2.history.filter(function(h){return h.d!==x.date;}); sg2.history.push({d:x.date,k:it.k}); }); save(); renderPick(); toast('Historial actualizado con '+x.items.length+' cantos'); break;
+  case 'setdel': if(ui.confirm==='setdel'){ db.sets=db.sets.filter(function(y){return y.id!==ui.set;}); ui.set=null; ui.confirm=''; save(); buildSets(); toast('Playlist eliminada'); } else { ui.confirm='setdel'; renderSetDetail(); } break;
   /* respaldo */
   case 'export': var ta=$('#b-out'); ta.value=JSON.stringify(db); ta.focus(); ta.select();
     try{ navigator.clipboard.writeText(ta.value).then(function(){ toast('Respaldo copiado'); },function(){ toast('Selecciona el texto y cópialo a mano'); }); }catch(err){ toast('Selecciona el texto y cópialo a mano'); } break;
@@ -1800,6 +1877,7 @@ document.addEventListener('input',function(e){
   var id=e.target.id;
   if(id==='f-q'){ ui.q=e.target.value; renderList(); }
   else if(id==='pick-q'){ ui.pq=e.target.value; renderPick(); }
+  else if(id==='pl-q'){ plSheetRows(); }
   else if(id==='set-name'){ var x=curSet(); x.name=e.target.value; save(); renderSetList(); }
 });
 document.addEventListener('change',function(e){
