@@ -231,6 +231,8 @@ body.pl-open{overflow:hidden}
 .fold>summary .lab{white-space:nowrap;margin:0}
 .fold>summary .sel{flex:1;min-width:0;text-align:right;color:var(--muted);font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fold .body{padding:0 14px 14px}
+.pl-notes{font-size:.8125rem;line-height:1.4;color:var(--muted);white-space:pre-wrap;border-left:3px solid var(--accent);padding:2px 0 2px 10px;margin:0 0 10px;max-height:6.5em;overflow-y:auto}
+.pl-notes b{color:var(--ink);font-weight:700}
 .fbox{display:grid;gap:8px}
 .fbox[hidden]{display:none}
 #f-tg.on{border-color:var(--accent);color:var(--accent)}
@@ -1130,8 +1132,9 @@ function plLoad(){
   PL.cols=+d.cols>=1&&+d.cols<=4?+d.cols:0;
   PL.fs=+d.fs>=12&&+d.fs<=64?+d.fs:Math.max(20,ui.fs);
   PL.fsn=+d.fsn>=14&&+d.fsn<=72?+d.fsn:34;
+  PL.notes=d.notes!==false;
 }
-function plSave(){ try{ localStorage.setItem('libro-cantos.player',JSON.stringify({dir:PL.dir,cols:PL.cols,fs:PL.fs,fsn:PL.fsn})); }catch(e){} }
+function plSave(){ try{ localStorage.setItem('libro-cantos.player',JSON.stringify({dir:PL.dir,cols:PL.cols,fs:PL.fs,fsn:PL.fsn,notes:PL.notes})); }catch(e){} }
 function plStart(nc){
   var x=curSet(); if(!x) return;
   PL.raw=x.items.filter(function(it){return song(it.sid);}); PL.join=true; PL.items=groupCoritos(PL.raw);
@@ -1185,11 +1188,12 @@ function plAdd(sid,k){
 function plExit(){
   PL.on=false; var p=$('#player'); if(p) p.remove(); document.body.classList.remove('pl-open'); setWake(false);
 }
+function plNotes(s){ var t=(s.notes||'').trim(); return (PL.notes&&t)?'<div class="pl-notes" aria-label="Notas del canto"><b>Notas</b> '+esc(t)+'</div>':''; }
 function plGroupPage(it,idx){
   var N=PL.items.length, max=0, nx=PL.items[idx+1];
   var parts=it.group.map(function(g){ var s2=song(g.sid), capo2=(s2.capoByKey||{})[g.k]||0, ch2=partsChart(s2,g.parts); if(PL.nc) ch2=lyricsOnly(ch2);
     var r2=renderChart({orig:s2.orig,minor:s2.minor,chart:ch2},g.k,capo2); if(r2.len>max) max=r2.len;
-    return '<div class="grp"><div class="grp-t">'+esc(s2.title)+(PL.nc?'':' · '+keyName(g.k,s2.minor)+(capo2?' · capo '+capo2:''))+'</div>'+r2.html+'</div>'; });
+    return '<div class="grp"><div class="grp-t">'+esc(s2.title)+(PL.nc?'':' · '+keyName(g.k,s2.minor)+(capo2?' · capo '+capo2:''))+'</div>'+plNotes(s2)+r2.html+'</div>'; });
   return '<section class="pl-page'+(idx===N-1?' last':'')+'" data-i="'+idx+'" aria-label="Cadena de coritos"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>Cadena de coritos</b><span class="pl-m">'+it.group.map(function(g){return esc(song(g.sid).title);}).join(' → ')+'</span></div>'+
     '<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+max+'"><div class="cols">'+parts.join('')+'</div></div>'+
     (nx?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin de la playlist<br><button class="btn primary" data-a="plmore" style="margin-top:8px;min-height:48px">＋ Enlazar otro canto</button></div>')+'</section>';
@@ -1203,7 +1207,7 @@ function plPage(it,idx){
   if(!ch.trim()) body='<div class="chart"><div class="chart-empty">Este canto aún no tiene letra ni acordes.</div></div>';
   else { var r=renderChart({orig:s.orig,minor:s.minor,chart:ch},it.k,capo); body='<div class="chart'+(PL.nc?' nc':'')+'" data-len="'+r.len+'"><div class="cols">'+r.html+'</div></div>'; }
   var nx=PL.items[idx+1], nxs=nx&&song(nx.sid);
-  return '<section class="pl-page'+(idx===N-1?' last':'')+'" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?(meta?' · ':'')+'Solo: '+esc(only):'')+'</span></div>'+body+
+  return '<section class="pl-page'+(idx===N-1?' last':'')+'" data-i="'+idx+'" aria-label="'+esc(s.title)+'"><div class="pl-h"><span class="pl-n">'+(idx+1)+'/'+N+'</span><b>'+esc(s.title)+'</b><span class="pl-m">'+meta+(only?(meta?' · ':'')+'Solo: '+esc(only):'')+'</span></div>'+plNotes(s)+body+
     (nxs?'<div class="pl-next">Sigue: <b>'+esc(plTitle(nx))+'</b> ↓</div>':'<div class="pl-next">Fin de la playlist<br><button class="btn primary" data-a="plmore" style="margin-top:8px;min-height:48px">＋ Enlazar otro canto</button></div>')+'</section>';
 }
 function plBuild(keep){
@@ -1218,6 +1222,7 @@ function plBuild(keep){
     '<div class="row"><span class="lab">Columnas</span>'+C.map(function(c){return '<button class="chip wide'+(PL.cols===c[0]?' on':'')+'" data-a="plcols" data-n="'+c[0]+'" aria-pressed="'+(PL.cols===c[0])+'">'+c[1]+'</button>';}).join('')+'</div>'+
     '<div class="row"><span class="lab">Tamaño de letra</span><button class="btn sm" data-a="plfs" data-d="-1" aria-label="Letra más pequeña">A−</button><b style="min-width:2.4em;text-align:center">'+plF()+'</b><button class="btn sm" data-a="plfs" data-d="1" aria-label="Letra más grande">A+</button></div>'+
     '<div class="row"><span class="lab">Coritos</span><button class="chip wide'+(PL.join?' on':'')+'" data-a="pljoin" data-j="1" aria-pressed="'+PL.join+'">Juntos en cadena</button><button class="chip wide'+(PL.join?'':' on')+'" data-a="pljoin" data-j="0" aria-pressed="'+(!PL.join)+'">Uno por página</button></div>'+
+    '<div class="row"><span class="lab">Notas</span><button class="chip wide'+(PL.notes?' on':'')+'" data-a="plnotes" aria-pressed="'+PL.notes+'">Mostrar</button><button class="chip wide'+(PL.notes?'':' on')+'" data-a="plnotes" aria-pressed="'+(!PL.notes)+'">Ocultar</button></div>'+
     '<div class="row"><span class="lab">Acordes</span><button class="chip wide'+(PL.nc?'':' on')+'" data-a="plnc" aria-pressed="'+(!PL.nc)+'">Con acordes</button><button class="chip wide'+(PL.nc?' on':'')+'" data-a="plnc" aria-pressed="'+PL.nc+'">Solo letra</button></div>'+
     '<div class="row"><button class="btn sm" data-a="plreset">Volver a lo recomendado para esta pantalla</button></div>'+
    '</div>'+
@@ -1230,6 +1235,7 @@ function plBuild(keep){
   plFit(); plGo(PL.i,true); plUpdate();
   var tr=$('#pl-track'), tm; tr.addEventListener('scroll',function(){ clearTimeout(tm); tm=setTimeout(plSync,90); },{passive:true});
 }
+function plNH(pg){ var n=[].filter.call(pg.children,function(c){return c.classList.contains('pl-notes');})[0]; return n?n.offsetHeight+10:0; }
 function plFit(){
   var tr=$('#pl-track'); if(!tr) return;
   var vert=PL.dir==='v', W=0.61, gap=28;
@@ -1241,7 +1247,7 @@ function plFit(){
     if(c.classList.contains('nc')){
       var fn=plF(), c0=PL.cols>0?PL.cols:1, c1=PL.cols>0?PL.cols:(vert?1:3);
       if(vert){ set(fn,c0); return; }
-      var hd0=pg.querySelector('.pl-h'), tg0=pg.clientHeight-hd0.offsetHeight-30-(pg.classList.contains('last')?60:0);
+      var hd0=pg.querySelector('.pl-h'), tg0=pg.clientHeight-hd0.offsetHeight-plNH(pg)-30-(pg.classList.contains('last')?60:0);
       for(var f2=fn;f2>=16;f2-=2){ for(var k0=c0;k0<=c1;k0++){ set(f2,k0); if(cols.scrollHeight<=tg0) return; } }
       set(16,c1); return;
     }
@@ -1249,7 +1255,7 @@ function plFit(){
     if(PL.cols>0){
       n=PL.cols; f=Math.max(vert?13:11,Math.min(f,Math.floor((avail-gap*(n-1))/n/(len*W))));
       set(f,n);
-      if(!vert){ var hdr=pg.querySelector('.pl-h'), tgt=pg.clientHeight-hdr.offsetHeight-30-(pg.classList.contains('last')?60:0); while(cols.scrollHeight>tgt&&f>11){ f--; set(f,n); } }
+      if(!vert){ var hdr=pg.querySelector('.pl-h'), tgt=pg.clientHeight-hdr.offsetHeight-plNH(pg)-30-(pg.classList.contains('last')?60:0); while(cols.scrollHeight>tgt&&f>11){ f--; set(f,n); } }
       return;
     }
     if(len*W*f>avail) f=Math.max(vert?13:12,Math.floor(avail/(len*W)));
@@ -1860,6 +1866,7 @@ document.addEventListener('click',function(e){
   case 'plfs': if(PL.nc) PL.fsn=Math.max(14,Math.min(72,PL.fsn+(+t.dataset.d)*2)); else PL.fs=Math.max(12,Math.min(64,PL.fs+(+t.dataset.d)*2)); plSave(); plBuild(true); break;
   case 'pljoin': PL.join=t.dataset.j==='1'; PL.items=PL.join?groupCoritos(PL.raw):PL.raw.slice(); PL.i=0; plBuild(true); break;
   case 'plnc': PL.nc=!PL.nc; plBuild(true); break;
+  case 'plnotes': PL.notes=!PL.notes; plSave(); plBuild(true); break;
   case 'plreset': try{ localStorage.removeItem('libro-cantos.player'); }catch(err){} plLoad(); plBuild(true); toast('Ajustes recomendados para esta pantalla'); break;
   case 'plnext': plGo(PL.i+1); break;
   case 'plprev': plGo(PL.i-1); break;
